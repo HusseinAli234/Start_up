@@ -3,6 +3,8 @@ venv
 
 .vscode
 .git
+uploads/
+__pycache__/
 
 **/__pycache__/
 

@@ -9,7 +9,7 @@ class EmployerProfile(Base):
     location=Column(String,index=True)
     industry=Column(String,index=True)
     description=Column(String,index=True)
-    job_posting=relationship('JobPosting',back_populate='employers')
+    job_posting=relationship('JobPosting',back_populates='employers')
 
 class JobPosting(Base):
     __tablename__="job_postings"
@@ -19,4 +19,4 @@ class JobPosting(Base):
     location=Column(String,index=True)
     salary=Column(Integer,index=True)
     employer_id=Column(Integer,ForeignKey('employers.id'))
-    employer = relationship('EmployerProfile',back_populate='job_postings')
+    employer = relationship('EmployerProfile',back_populates='job_postings')

@@ -1,32 +1,33 @@
-from pydantic import BaseModel, EmailStr, Field,List
+from pydantic import BaseModel, EmailStr, Field
 from enum import Enum
+from typing import List
+
 class SkillType(str, Enum):
     HARD = "HARD"
     SOFT = "SOFT"
 
 class Skill(BaseModel):
-    id: int
     title: str
-    level: float = Field(gt=0.0, le=1.0)
+    level: int
     justification: str
     type: SkillType
 
-class Resume(BaseModel):
-    id: int
+class Education(BaseModel):
+    name: str
+    description: str
+class Experience(BaseModel):
+    name: str    
+    description: str
+
+
+class ResumeCreate(BaseModel):
     fullname: str
     location: str
-    experience: str
-    education: str
+    experience: List[Experience]
+    education: List[Education]
     skills: List[Skill]
 
-class ResumeRequest(BaseModel):
-    fullname: str
-    location: str
-    experience: str
-    education: str
-
 class ResumeResponse(BaseModel):
-    id: int
     fullname: str
     class Config:
         orm_mode = True

@@ -2,41 +2,62 @@ import requests
 from dotenv import load_dotenv
 import os
 import re
-
+from openai import OpenAI
 load_dotenv()
 
-def analyze_resume(resume):
-    api_key = os.getenv("API_KEY")
-    if not api_key:
-        return "API key not found. Check .env file."
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    
-    data = {
-        "model": "google/gemini-2.5-pro-exp-03-25:free",
-        "messages": [
-            {
-                "role": "user",
-                "content": f"""я тебя сейчас отправлю резюме ты должен вернуть мне в виде json формата основные навыки которые есть в резюме в том числе и soft и hard skill,также отдельно должно быть пояснения по каждому баллу которое ты дал для каждого навыка от 0 до 1 через точку указывай ,БЕЗ ЛИШНИХ СЛОВ ТОЛЬКО ОТКРЫТАЯ СКОБКА ФИГУРНАЯ И НАВЫКИ И ПОТОМ ЗАКРЫВАЙ СКОБКУ,а вот резюме,БУДЬ ОЧЕНЬ СТРОГИМ К АНАЛИЗУ , если навык просто упоминается то ставь ниже 0.3,короче будь как строгий работодатель:
-{resume}
-"""
-            }
+
+
+
+base_url = "https://api.aimlapi.com/v1"
+
+# Insert your AIML API key in the quotation marks instead of <YOUR_AIMLAPI_KEY>:
+api_key = f"{os.getenv("API_KEY")}"
+
+system_prompt = f"""Ты — эксперт по анализу и структурированию данных из резюме. Твоя задача — взять текст резюме и преобразовать его в строго форматированный JSON-объект для хранения в базе данных:
+                только json без ничего лишнего в таком виде,ОЦЕНИВАЙ ОЧЕНЬ СТРОГО! , если просто упоминается то ставь ниже 30:
+                [
+                  "fullname": "string",
+                  "location": "string",
+                  "experience":  [
+                    [
+                      "name": "string",
+                      "description": "string"
+                    ]
+                  ],
+                  "education": [
+                    [
+                      "name": "string",
+                      "description": "string"
+                    ]
+                  ],
+                  "skills": [
+                    [
+                      "title": "string",
+                      "level": "int"(от 0 до 100),
+                      "justification": "string",
+                      "type": "string"("HARD", "SOFT")
+                    ]
+                  ]
+                ]"""
+
+api = OpenAI(api_key=api_key, base_url=base_url)
+
+
+def analyze_resume(user_prompt:str):
+    completion = api.chat.completions.create(
+        model="gpt-4o-mini-2024-07-18",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
         ],
-    }
-    
-    try:
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json=data
-        )
-        response.raise_for_status()
-        response_data = response.json()
-        content = response_data.get('choices', [{}])[0].get('message', {}).get('content', 'No content')
-        match = re.search(r"\{.*\}", content.strip(), re.DOTALL)
-        result = match.group(0) if match else None
-        return result
-    except requests.exceptions.RequestException as e:
-        return f"Error: {e}"
+        temperature=0.2,
+        max_tokens=1000,
+    )
+
+    response = completion.choices[0].message.content
+    match = re.search(r"\{.*\}", response.strip(), re.DOTALL)
+    result = match.group(0) if match else None
+    print("AI:", result)
+    return result
+
+

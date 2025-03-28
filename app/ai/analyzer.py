@@ -10,11 +10,10 @@ load_dotenv()
 
 base_url = "https://api.aimlapi.com/v1"
 
-# Insert your AIML API key in the quotation marks instead of <YOUR_AIMLAPI_KEY>:
 api_key = f"{os.getenv("API_KEY")}"
 
 system_prompt = f"""Ты — эксперт по анализу и структурированию данных из резюме. Твоя задача — взять текст резюме и преобразовать его в строго форматированный JSON-объект для хранения в базе данных:
-                только json без ничего лишнего в таком виде,ОЦЕНИВАЙ ОЧЕНЬ СТРОГО! , если просто упоминается то ставь ниже 30:
+                только json без ничего лишнего в таком виде,ОЦЕНИВАЙ ОЧЕНЬ СТРОГО,ЛУЧШЕ ПОСТАВЬ НИЖЕ ЧЕМ ВЫШЕ РЕАЛЬНОГО,не делай описание длинным , пиши только суть , если просто упоминается навык то ставь ниже 20,:
                 [
                   "fullname": "string",
                   "location": "string",
@@ -51,7 +50,7 @@ def analyze_resume(user_prompt:str):
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.2,
-        max_tokens=1000,
+        max_tokens=2000,
     )
 
     response = completion.choices[0].message.content

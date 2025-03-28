@@ -10,8 +10,8 @@ class ResumeService:
         db_resume = Resume(
         fullname=resume_data.fullname,
         location=resume_data.location,
-        experience=[Experience(name=experience.name, description=experience.description) for experience in resume_data.experience],
-        education=[Education(name=education.name, description=education.description) for education in resume_data.education],
+        experiences=[Experience(name=experience.name, description=experience.description) for experience in resume_data.experience],
+        educations=[Education(name=education.name, description=education.description) for education in resume_data.education],
         skills=[Skill(title=skill.title, level=skill.level,justification=skill.justification,type=skill.type) for skill in resume_data.skills]
     )
         self.db.add(db_resume)

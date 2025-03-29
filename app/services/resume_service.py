@@ -51,7 +51,10 @@ class ResumeService:
         resume = result.scalars().first()
         return resume
 
-    async def delete_resume(self, resume_id: int) -> bool:
-        result = await self.db.execute(delete(Resume).where(Resume.id == resume_id))
+    async def delete_resume(self, resume_id: int) -> Resume:
+        resume = await self.get_resume(resume_id)
+        if not resume:
+            return None
+        await self.db.delete(resume)
         await self.db.commit()
-        return result.rowcount > 0
+        return resume

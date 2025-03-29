@@ -12,6 +12,7 @@ from app.services import cv_services, resume_service
 from contextlib import asynccontextmanager
 from pydantic import ValidationError
 from app.routers import job_seekers as job_seekers_router
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -24,6 +25,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(job_seekers_router.router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Разрешает все домены (замените на список доменов для ограничения)
+    allow_credentials=True,
+    allow_methods=["*"],  # Разрешает все методы (GET, POST, PUT и т. д.)
+    allow_headers=["*"],  # Разрешает все заголовки
+)
 
 
 UPLOAD_DIR = "back_media/"

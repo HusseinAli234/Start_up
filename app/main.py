@@ -25,7 +25,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(job_seekers_router.router)
 
 
-UPLOAD_DIR = "uploads"
+UPLOAD_DIR = "back_media/"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 

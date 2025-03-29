@@ -5,7 +5,8 @@ import shutil
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import engine, get_db, Base
+from app.database import engine, get_db
+from app.models.job_seekers import Base
 from app.schemas.resume_schema import ResumeCreate
 from app.services import cv_services, resume_service
 from contextlib import asynccontextmanager

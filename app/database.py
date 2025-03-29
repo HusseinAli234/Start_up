@@ -10,8 +10,9 @@ engine = create_async_engine(DATABASE_URL, echo=True)
 
 # Фабрика для создания сессий
 AsyncSessionLocal = sessionmaker(
-    engine, expire_on_commit=False, class_=AsyncSession
+    engine, expire_on_commit=True, class_=AsyncSession
 )
+
 
 # Функция для получения сессии в асинхронном контексте
 async def get_db():

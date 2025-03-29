@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.models.job_seekers import Resume, Education, Experience, Skill, TypeSkill
 from app.schemas.resume_schema import ResumeCreate
 from sqlalchemy.orm import selectinload
+from sqlalchemy import delete
 
 class ResumeService:
     def __init__(self, db: AsyncSession):
@@ -50,10 +51,7 @@ class ResumeService:
         resume = result.scalars().first()
         return resume
 
-    async def delete_resume(self, resume_id: int) -> Resume:
-        resume = await self.get_resume(resume_id)
-        if not resume:
-            return None
-        self.db.delete(resume)
+    async def delete_resume(self, resume_id: int) -> bool:
+        result = await self.db.execute(delete(Resume).where(Resume.id == resume_id))
         await self.db.commit()
-        return resume
+        return result.rowcount > 0

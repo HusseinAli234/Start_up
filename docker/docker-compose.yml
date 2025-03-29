@@ -1,15 +1,13 @@
-version: '3.8'
-
 services:
   fastapi:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: docker/Dockerfile
     container_name: fastapi_app
     ports:
       - "8000:8000"
     env_file:
-      - .env  
+      - ../.env  
     depends_on:
       - postgres_db
     volumes:
@@ -23,7 +21,7 @@ services:
     ports:
       - "5432:5432"
     env_file:
-      - .env  
+      - ../.env  
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: on-failure
@@ -34,7 +32,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ../nginx/nginx.conf:/etc/nginx/conf.d/default.conf
       - static_volume:/app/static/
       - media_volume:/app/media/
     depends_on:

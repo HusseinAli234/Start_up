@@ -1,42 +1,59 @@
-from sqlalchemy.orm import Session
-from app.models.job_seekers import Resume,Education,Experience,Skill  # Assuming a Resume model exists
-from app.schemas.resume_schema import ResumeCreate  # Assuming schemas exist
+# resume_service.py
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.models.job_seekers import Resume, Education, Experience, Skill, TypeSkill
+from app.schemas.resume_schema import ResumeCreate
+from sqlalchemy.orm import selectinload
 
 class ResumeService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def create_resume(self, resume_data: ResumeCreate):
+    async def create_resume(self, resume_data: ResumeCreate) -> Resume:
         db_resume = Resume(
-        fullname=resume_data.fullname,
-        location=resume_data.location,
-        experiences=[Experience(name=experience.name, description=experience.description) for experience in resume_data.experience],
-        educations=[Education(name=education.name, description=education.description) for education in resume_data.education],
-        skills=[Skill(title=skill.title, level=skill.level,justification=skill.justification,type=skill.type) for skill in resume_data.skills]
-    )
+            fullname=resume_data.fullname,
+            location=resume_data.location,
+            experiences=[
+                Experience(name=exp.name, description=exp.description)
+                for exp in resume_data.experience
+            ],
+            educations=[
+                Education(name=edu.name, description=edu.description)
+                for edu in resume_data.education
+            ],
+            skills=[
+                Skill(
+                    title=skill.title,
+                    level=skill.level,
+                    justification=skill.justification,
+                    type=TypeSkill(skill.type)
+                )
+                for skill in resume_data.skills
+            ]
+        )
         self.db.add(db_resume)
-        self.db.commit()
-        self.db.refresh(db_resume)
+        await self.db.commit()  # commit должен быть асинхронным
+        await self.db.refresh(db_resume)  # обновление объекта после сохранения
         return db_resume
 
-    def get_resume(self, resume_id: int):
-        # Retrieve a resume by ID
-        return self.db.query(Resume).filter(Resume.id == resume_id).first()
+    async def get_resume(self, resume_id: int) -> Resume:
+    # Используем selectinload для предзагрузки связанных объектов
+        result = await self.db.execute(
+            select(Resume)
+            .options(
+                selectinload(Resume.experiences),
+                selectinload(Resume.educations),
+                selectinload(Resume.skills)
+            )
+            .where(Resume.id == resume_id)
+        )
+        resume = result.scalars().first()
+        return resume
 
-    # def update_resume(self, resume_id: int, resume_data: ResumeUpdate):
-    #     resume = self.get_resume(resume_id)
-    #     if not resume:
-    #         return None
-    #     for key, value in resume_data.dict(exclude_unset=True).items():
-    #         setattr(resume, key, value)
-    #     self.db.commit()
-    #     self.db.refresh(resume)
-    #     return resume
-
-    def delete_resume(self, resume_id: int):
-        resume = self.get_resume(resume_id)
+    async def delete_resume(self, resume_id: int) -> Resume:
+        resume = await self.get_resume(resume_id)
         if not resume:
             return None
         self.db.delete(resume)
-        self.db.commit()
+        await self.db.commit()
         return resume

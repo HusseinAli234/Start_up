@@ -1,51 +1,56 @@
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Enum, Float
-from app.database import Base
+# models.py
 import enum
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import Integer, String, Float, ForeignKey, Enum as SAEnum
+
+
+class Base(DeclarativeBase):
+    pass
+
 
 class TypeSkill(enum.Enum):
     SOFT = "SOFT"
     HARD = "HARD"
 
+
 class Resume(Base):
     __tablename__ = "resumes"
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    fullname = Column(String, index=True)
-    location = Column(String, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    fullname: Mapped[str] = mapped_column(String, index=True)
+    location: Mapped[str] = mapped_column(String, index=True)
     
-    skills = relationship('Skill', back_populates='resume')
-    educations = relationship('Education', back_populates='resume')
-    experiences = relationship('Experience', back_populates='resume')
+    skills: Mapped[list["Skill"]] = relationship("Skill", back_populates="resume", cascade="all, delete-orphan")
+    educations: Mapped[list["Education"]] = relationship("Education", back_populates="resume", cascade="all, delete-orphan")
+    experiences: Mapped[list["Experience"]] = relationship("Experience", back_populates="resume", cascade="all, delete-orphan")
+
 
 class Education(Base):
-    __tablename__ = 'educations'
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String, index=True)
-    description = Column(String, index=True)
-    resume_id = Column(Integer, ForeignKey('resumes.id'))
+    __tablename__ = "educations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, index=True)
+    description: Mapped[str] = mapped_column(String, index=True)
+    resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"))
     
-    # Исправлено: `resume` вместо `resumes`
-    resume = relationship('Resume', back_populates='educations')
+    resume: Mapped["Resume"] = relationship("Resume", back_populates="educations")
+
 
 class Experience(Base):
-    __tablename__ = 'experiences'
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String, index=True)
-    description = Column(String, index=True)
-    resume_id = Column(Integer, ForeignKey('resumes.id'))
+    __tablename__ = "experiences"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, index=True)
+    description: Mapped[str] = mapped_column(String, index=True)
+    resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"))
     
-    # Исправлено: `resume` вместо `resumes`
-    resume = relationship('Resume', back_populates='experiences')    
+    resume: Mapped["Resume"] = relationship("Resume", back_populates="experiences")
+
 
 class Skill(Base):
-    __tablename__ = 'skills'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String, nullable=False)
-    level = Column(Float, index=True)
-    justification = Column(String, index=True)
-    resume_id = Column(Integer, ForeignKey('resumes.id'))
+    __tablename__ = "skills"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    level: Mapped[float] = mapped_column(Float, index=True)
+    justification: Mapped[str] = mapped_column(String, index=True)
+    resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"))
+    type: Mapped[TypeSkill] = mapped_column(SAEnum(TypeSkill), nullable=False, default=TypeSkill.HARD)
     
-    # Исправлено: `resume` вместо `resumes`
-    resume = relationship('Resume', back_populates='skills')
-
-    type = Column(Enum(TypeSkill), nullable=False, default=TypeSkill.HARD)  
+    resume: Mapped["Resume"] = relationship("Resume", back_populates="skills")

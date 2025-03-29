@@ -1,15 +1,19 @@
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from app.models.job_seekers import Base
 
-DATABASE_URL = "sqlite:///./test.db"
+# URL базы данных (используется SQLite для тестирования)
+DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-Base = declarative_base()
+# Создаем асинхронный движок
+engine = create_async_engine(DATABASE_URL, echo=True)
+
+# Фабрика для создания сессий
+AsyncSessionLocal = sessionmaker(
+    engine, expire_on_commit=False, class_=AsyncSession
+)
+
+# Функция для получения сессии в асинхронном контексте
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session

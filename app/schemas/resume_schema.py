@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
+# schemas.py
+from pydantic import BaseModel
 from enum import Enum
 from typing import List
 
@@ -6,28 +7,39 @@ class SkillType(str, Enum):
     HARD = "HARD"
     SOFT = "SOFT"
 
-class Skill(BaseModel):
+
+class SkillSchema(BaseModel):
     title: str
     level: int
     justification: str
     type: SkillType
 
-class Education(BaseModel):
+
+class EducationSchema(BaseModel):
     name: str
     description: str
-class Experience(BaseModel):
-    name: str    
+
+
+class ExperienceSchema(BaseModel):
+    name: str
     description: str
 
 
 class ResumeCreate(BaseModel):
     fullname: str
     location: str
-    experience: List[Experience]
-    education: List[Education]
-    skills: List[Skill]
+    experience: List[ExperienceSchema]
+    education: List[EducationSchema]
+    skills: List[SkillSchema]
+
 
 class ResumeResponse(BaseModel):
+    id: int
     fullname: str
+    location: str
+    skills: List[SkillSchema]  # Включаем навыки
+    educations: List[EducationSchema]  # Включаем образование
+    experiences: List[ExperienceSchema]  # Включаем опыт работы
+
     class Config:
         orm_mode = True

@@ -1,33 +1,58 @@
-from fastapi import FastAPI,File,UploadFile
-from app.routers import users
-from app.database import Base, engine
-from fastapi.responses import FileResponse
-from app.services import cv_services
-from app.services import resume_service
-from fastapi import Depends
-from app.database import get_db 
-from sqlalchemy.orm import Session
-import shutil
+# main.py
 import os
-app = FastAPI()
-app.include_router(users.router)
-Base.metadata.create_all(bind=engine)
-UPLOAD_DIR = "uploads" 
-os.makedirs(UPLOAD_DIR, exist_ok=True) 
+import aiofiles
+import shutil
+from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
+from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database import engine, get_db, Base
+from app.schemas.resume_schema import ResumeCreate
+from app.services import cv_services, resume_service
+from contextlib import asynccontextmanager
+from pydantic import ValidationError
+from app.routers import job_seekers as job_seekers_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(lifespan=lifespan)
+app.include_router(job_seekers_router.router)
+
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
 @app.post("/upload_pdf")
-async def upload_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_pdf(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
     if not file.filename.endswith(".pdf"):
-        return {"error": "Only PDF files are accepted"}
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
 
-    file_path = f"{UPLOAD_DIR}/{file.filename}"
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    async with aiofiles.open(file_path, "wb") as out_file:
+        while chunk := await file.read(1024 * 1024):  # Читаем по 1MB
+            await out_file.write(chunk)
 
+
+    # Парсинг PDF-файла (ожидается, что функция вернет dict, соответствующий ResumeCreate)
     parsed_data = cv_services.parse_pdf(file_path)
-    resume_data = resume_service.ResumeCreate(**parsed_data)
+    if not parsed_data:
+        raise HTTPException(status_code=400, detail="Failed to parse PDF")
 
-    resume_service_instance = resume_service.ResumeService(db) 
-    db_resume = resume_service_instance.create_resume(resume_data)  
 
-    return db_resume 
+    
+    try:
+        resume_data = ResumeCreate(**parsed_data)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=f"Data validation error: {e.errors()}")
 
+    service = resume_service.ResumeService(db)
+    db_resume = await service.create_resume(resume_data)
+    
+    return JSONResponse(content={"id": db_resume.id, "fullname": db_resume.fullname, "location": db_resume.location})

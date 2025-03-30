@@ -54,6 +54,6 @@ class ResumeService:
         resume = await self.get_resume(resume_id)
         if not resume:
             return None
-        self.db.delete(resume)
+        await self.db.delete(resume)
         await self.db.commit()
         return resume

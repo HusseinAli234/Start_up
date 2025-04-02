@@ -3,72 +3,19 @@ from dotenv import load_dotenv
 import os
 import re
 from openai import OpenAI
-import google.generativeai as genai
-from google.generativeai import types
+from google import genai
+from google.genai import types
+import json
 load_dotenv()
 
-
-
-
-# base_url = "https://api.aimlapi.com/v1"
-
-# api_key = os.getenv("API_KEY")
-
-# system_prompt = f"""Ты — эксперт по анализу и структурированию данных из резюме. Твоя задача — взять текст резюме и преобразовать его в строго форматированный JSON-объект для хранения в базе данных:
-#                 только json без ничего лишнего в таком виде, HARD скилы ОЦЕНИВАЙ ОЧЕНЬ СТРОГО,ЛУЧШЕ ПОСТАВЬ НИЖЕ ЧЕМ ВЫШЕ РЕАЛЬНОГО, а SOFT скилы оценивай просто СТРОГО, не делай описание длинным , пиши только суть , если просто упоминается навык то ставь ниже 20,:
-#                 [
-#                   "fullname": "string",
-#                   "location": "string",
-#                   "experience":  [
-#                     [
-#                       "name": "string",
-#                       "description": "string"
-#                     ]
-#                   ],
-#                   "education": [
-#                     [
-#                       "name": "string",
-#                       "description": "string"
-#                     ]
-#                   ],
-#                   "skills": [
-#                     [
-#                       "title": "string",
-#                       "level": "int"(от 0 до 100),
-#                       "justification": "string",
-#                       "type": "string"("HARD", "SOFT")
-#                     ]
-#                   ]
-#                 ]"""
-
-# api = OpenAI(api_key=api_key, base_url=base_url)
-
-
-# def analyze_resume(user_prompt:str):
-#     completion = api.chat.completions.create(
-#         model="gpt-4o-mini-2024-07-18",
-#         messages=[
-#             {"role": "system", "content": system_prompt},
-#             {"role": "user", "content": user_prompt},
-#         ],
-#         temperature=0.2,
-#         max_tokens=2000,
-#     )
-
-#     response = completion.choices[0].message.content
-#     match = re.search(r"\{.*\}", response.strip(), re.DOTALL)
-#     result = match.group(0) if match else None
-#     print("AI:", result)
-#     return result
-
-
-
-def analyze_resume(user_prompt:str):
-    client = genai.Client(
+client = genai.Client(
         api_key=os.environ.get("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.5-pro-exp-03-25"
+def analyze_resume(user_prompt:str):
+   
+
+    model = "gemini-2.0-flash"
     contents = [
         types.Content(
             role="user",
@@ -78,7 +25,7 @@ def analyze_resume(user_prompt:str):
         ),
     ]
     generate_content_config = types.GenerateContentConfig(
-        temperature=0.2,
+        temperature=0.1,
         response_mime_type="application/json",
         response_schema=genai.types.Schema(
             type = genai.types.Type.ARRAY,
@@ -159,6 +106,12 @@ def analyze_resume(user_prompt:str):
         config=generate_content_config,
     )
 
-    print(response.text)
-    return response.text
+    print(response.to_json_dict()['candidates'][0]['content']['parts'][0]['text'])
+    json_text = response.to_json_dict()['candidates'][0]['content']['parts'][0]['text']
+    
+    try:
+        parsed_json = json.loads(json_text) 
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Ошибка декодирования JSON: {e}")
+    return parsed_json[0]
 

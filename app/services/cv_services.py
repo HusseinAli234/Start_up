@@ -10,10 +10,7 @@ def parse_pdf(file_path: str) -> str:
             if page_text:
                 text.append(page_text)
     result = analyze_resume("\n".join(text))
-    if result.startswith('"') and result.endswith('"'):
-        result = result[1:-1]
-    
-    result = result.replace("\\n", "\n")
-    parsed_json = json.loads(result)
-    return parsed_json
+    if not isinstance(result, dict):
+        raise ValueError(f"Ожидался JSON-объект, но получена {type(result[0])}")
+    return result
 

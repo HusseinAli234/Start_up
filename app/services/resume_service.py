@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.models.job_seekers import Resume, Education, Experience, Skill, TypeSkill
 from app.schemas.resume_schema import ResumeCreate
 from sqlalchemy.orm import selectinload
+from sqlalchemy import delete
 
 class ResumeService:
     def __init__(self, db: AsyncSession):

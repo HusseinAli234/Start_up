@@ -37,9 +37,9 @@ class ResumeResponse(BaseModel):
     id: int
     fullname: str
     location: str
-    skills: List[SkillSchema]  # Включаем навыки
-    educations: List[EducationSchema]  # Включаем образование
-    experiences: List[ExperienceSchema]  # Включаем опыт работы
+    skills: List[SkillSchema] 
+    educations: List[EducationSchema]  
+    experiences: List[ExperienceSchema] 
 
     class Config:
         orm_mode = True

@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from app.models.job_seekers import Base
+
 
 # URL базы данных (используется SQLite для тестирования)
 DATABASE_URL = "sqlite+aiosqlite:///./test.db"

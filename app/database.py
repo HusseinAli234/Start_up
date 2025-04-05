@@ -1,9 +1,19 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
+import os
 
 
-# URL базы данных (используется SQLite для тестирования)
-DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+load_dotenv()
+ 
+ 
+PROD = os.getenv("PROD") == "True" 
+ 
+ 
+if PROD:
+    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:password@postgres_db:5432/postgres_db")
+else:
+    DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 # Создаем асинхронный движок
 engine = create_async_engine(DATABASE_URL, echo=True)

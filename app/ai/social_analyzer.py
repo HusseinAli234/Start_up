@@ -37,7 +37,7 @@ def social_network_analyzer(str):
     }
 
 
-    BRIGHTDATA_API_KEY = "a4b64a1252624cd2fa29c402020c14e9c93d3d892942227263544d4a1fe91ebd" # Use your actual API key
+    BRIGHTDATA_API_KEY = "b8ca1069f855a70d33248d585a12a2f7443f585bf840ad45a97605b5bf1f72d4" # Use your actual API key
     TRIGGER_URL = "https://api.brightdata.com/datasets/v3/trigger"
     PROGRESS_URL_BASE = "https://api.brightdata.com/datasets/v3/progress/"
     SNAPSHOT_URL_BASE = "https://api.brightdata.com/datasets/v3/snapshot/"

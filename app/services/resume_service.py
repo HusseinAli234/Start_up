@@ -8,6 +8,7 @@ from sqlalchemy import delete
 from app.models.employers import JobPosting
 from fastapi import FastAPI, HTTPException
 
+
 app = FastAPI()
 
 items = {"foo": "The Foo Wrestlers"}
@@ -58,7 +59,29 @@ class ResumeService:
         await self.db.refresh(db_resume)  # обновляем объект после сохранения
         return db_resume
 
+    async def resume_skill_add(self, resume_id: int, soft_skills: list[dict]):
+        # Проверка на существование резюме
+        result = await self.db.execute(select(Resume).where(Resume.id == resume_id))
+        resume = result.scalar_one_or_none()
 
+        if resume is None:
+            raise ValueError(f"Resume with id {resume_id} not found")
+
+        # Создание объектов ResumeSkill
+        skills = []
+        for skill in soft_skills:
+            skill_obj = Skill(
+                title=skill["title"],
+                level=skill["level"],
+                justification=skill["justification"],
+                type=skill["type"],
+                resume_id=resume_id
+            )
+            skills.append(skill_obj)
+
+        # Добавление в сессию
+        self.db.add_all(skills)
+        await self.db.commit()
     async def get_resume(self, resume_id: int) -> Resume:
     # Используем selectinload для предзагрузки связанных объектов
         result = await self.db.execute(

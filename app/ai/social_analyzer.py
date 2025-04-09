@@ -2,6 +2,15 @@ import re
 import requests
 import time
 import json 
+from dotenv import load_dotenv
+import os
+from google import genai
+from google.genai import types
+load_dotenv()
+
+client = genai.Client(
+        api_key=os.environ.get("GEMINI_API_KEY"),
+    )
 
 def extract_social_media_links_json(text):
     """Extracts social media profile links from text."""
@@ -178,5 +187,77 @@ def social_network_analyzer(str):
 
 
             print("-" * 30) 
-    print("Finished processing all found links.")    
+    print("Finished processing all found links.")  
+
     return summary
+
+
+
+
+
+
+
+def analyze_social(pdf_info:str): 
+    social_info  = social_network_analyzer(pdf_info)
+    model = "gemini-2.0-flash"
+    contents = [
+        types.Content(
+            role="user",
+            parts=[
+                types.Part.from_text(text=social_info),
+            ],
+        ),
+    ]
+    generate_content_config = types.GenerateContentConfig(
+        temperature=0.4,
+        response_mime_type="application/json",
+        response_schema=genai.types.Schema(
+            type = genai.types.Type.ARRAY,
+            items = genai.types.Schema(
+                        type = genai.types.Type.ARRAY,
+                        items = genai.types.Schema(
+                            type = genai.types.Type.OBJECT,
+                            required = ["title", "level", "justification", "type"],
+                            properties = {
+                                "title": genai.types.Schema(
+                                    type = genai.types.Type.STRING,
+                                ),
+                                "level": genai.types.Schema(
+                                    type = genai.types.Type.INTEGER,
+                                ),
+                                "justification": genai.types.Schema(
+                                    type = genai.types.Type.STRING,
+                                ),
+                                "type": genai.types.Schema(
+                                    type = genai.types.Type.STRING,
+                                    enum = ["SOFT"],
+                                ),
+                            },
+                        ),
+                    ),
+    
+        ),
+         system_instruction=[
+            types.Part.from_text(text="""Ты опытный психолог который может определять по данным из соц сетей софт скиллы человека и отправлять их в json формате, исходя из соцсетей ты должен делать анализ,оценку ставь от 0 до 100"""),
+        ],
+    )
+
+    response = client.models.generate_content(
+        model=model,
+        contents=contents,
+        config=generate_content_config,
+    )
+
+    print(response.to_json_dict()['candidates'][0]['content']['parts'][0]['text'])
+    json_text = response.to_json_dict()['candidates'][0]['content']['parts'][0]['text']
+    
+    try:
+        parsed_json = json.loads(json_text) 
+        print(parsed_json)
+        return parsed_json[0]
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Ошибка декодирования JSON: {e}")
+    
+
+
+

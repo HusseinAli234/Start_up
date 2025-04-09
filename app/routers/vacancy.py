@@ -42,6 +42,8 @@ async def delete_vacancy(vacancy_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Vacancy not found")
     
     return {"message": "Vacancy deleted successfully"}
+
+
 @router.get("/sort/{vacancy_id}",response_model=List[SortResumesResponse])
 async def sort_resumes(vacancy_id: int, db: AsyncSession = Depends(get_db)):
     service = JobPostingService(db)

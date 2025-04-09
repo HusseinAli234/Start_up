@@ -1,11 +1,38 @@
+import re
+import difflib
+from statistics import mean
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from statistics import mean
-from app.models.employers import VacancySkill
-from app.models.employers import JobPosting  
+
+from app.models.employers import VacancySkill, JobPosting  
 from app.schemas.vacancy_schema import VacancyCreate
 from app.models.job_seekers import Resume
+
+def normalize(skill: str) -> str:
+    """
+    Приводит строку к нижнему регистру и удаляет все цифры.
+    Например: "Django 5" -> "django"
+    """
+    return re.sub(r'\d+', '', skill).strip().lower()
+
+def skills_match(skill_a: str, skill_b: str, threshold: float = 0.8) -> bool:
+    """
+    Возвращает True, если навыки считаются совпадающими.
+    Сначала выполняется проверка вхождения одного нормализованного навыка в другой,
+    если не сработало, используется коэффициент схожести.
+    """
+    norm_a = normalize(skill_a)
+    norm_b = normalize(skill_b)
+    
+    # Проверка наличия подстроки
+    if norm_a in norm_b or norm_b in norm_a:
+        return True
+    
+    # Вычисление коэффициента схожести
+    similarity_ratio = difflib.SequenceMatcher(None, norm_a, norm_b).ratio()
+    return similarity_ratio >= threshold
+
 class JobPostingService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -38,6 +65,7 @@ class JobPostingService:
             .where(JobPosting.id == job_id)
         )
         return result.scalars().first()
+        
     async def sort_by_hard(self, job_id: int):
         result = await self.db.execute(
             select(JobPosting)
@@ -52,23 +80,39 @@ class JobPostingService:
         if not job_posting:
             return []
 
-        # Названия скиллов у вакансии
-        vacancy_skill_titles = {skill.title.lower() for skill in job_posting.skills}
+        # Вывод информации по вакансии
+        print(f"Оцениваем вакансию: {job_posting.title}")
+        vacancy_skills = [(skill.title, normalize(skill.title)) for skill in job_posting.skills]
+        print("Навыки вакансии (оригинальный и нормализованный вид):", vacancy_skills)
 
         resume_scores = []
 
         for resume in job_posting.resumes:
-            matched_skills = [
-                skill.level for skill in resume.skills
-                if skill.title.lower() in vacancy_skill_titles
-            ]
-            avg_score = mean(matched_skills) if matched_skills else 0
+            matched_levels = []
+            print(f"\nОцениваем резюме: {resume.fullname}")
+            for r_skill in resume.skills:
+                r_skill_norm = normalize(r_skill.title)
+                matches = []
+                # Для каждого навыка резюме пробуем найти совпадения с навыками вакансии
+                for v_skill in job_posting.skills:
+                    is_match = skills_match(r_skill.title, v_skill.title)
+                    v_skill_norm = normalize(v_skill.title)
+                    matches.append((v_skill.title, is_match))
+                    if is_match:
+                        matched_levels.append(r_skill.level)
+                print(f"Навык резюме: '{r_skill.title}' (нормализовано: '{r_skill_norm}') -> Совпадения: {matches}")
+            avg_score = mean(matched_levels) if matched_levels else 0
+            print(f"Средний балл для {resume.fullname}: {avg_score}")
             resume_scores.append((resume, avg_score))
 
-        # Сортировка по среднему баллу (по убыванию)
+        # Сортировка резюме по убыванию среднего балла
         sorted_resumes = sorted(resume_scores, key=lambda item: item[1], reverse=True)
+        print("\nОтсортированные резюме:")
+        for r, score in sorted_resumes:
+            print(f"{r.fullname} - Средний балл: {score}")
 
         return [{"resume": r.fullname, "avg_skill_score": score} for r, score in sorted_resumes]
+    
     async def delete_job_posting(self, job_id: int) -> JobPosting:
         job = await self.get_job_posting(job_id)
         if not job:

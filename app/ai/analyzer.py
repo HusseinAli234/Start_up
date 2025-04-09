@@ -84,7 +84,7 @@ def analyze_resume(user_prompt:str):
                                 ),
                                 "type": genai.types.Schema(
                                     type = genai.types.Type.STRING,
-                                    enum = ["HARD", "SOFT"],
+                                    enum = ["HARD", ],
                                 ),
                             },
                         ),

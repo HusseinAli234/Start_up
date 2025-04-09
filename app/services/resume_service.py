@@ -23,7 +23,7 @@ class ResumeService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_resume(self, resume_data: ResumeCreate,vacancy_id: int | None = None) -> Resume:
+    async def create_resume(self, resume_data: ResumeCreate, vacancy_id: int | None = None) -> Resume:
         db_resume = Resume(
             fullname=resume_data.fullname,
             location=resume_data.location,
@@ -45,15 +45,19 @@ class ResumeService:
                 for skill in resume_data.skills
             ]
         )
+
         if vacancy_id:
+            # Если задан id вакансии, пытаемся получить вакансию
             job = await self.db.get(JobPosting, vacancy_id)
             if not job:
                 raise HTTPException(status_code=404, detail="Vacancy not found")
-        db_resume.job_postings.append(job)
+            db_resume.job_postings.append(job)
+
         self.db.add(db_resume)
-        await self.db.commit()  # commit должен быть асинхронным
-        await self.db.refresh(db_resume)  # обновление объекта после сохранения
+        await self.db.commit()  # асинхронный commit
+        await self.db.refresh(db_resume)  # обновляем объект после сохранения
         return db_resume
+
 
     async def get_resume(self, resume_id: int) -> Resume:
     # Используем selectinload для предзагрузки связанных объектов

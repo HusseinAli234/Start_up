@@ -3,6 +3,14 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import List
 
+
+class JobShort(BaseModel):
+    id: int
+    title: str
+
+    class Config:
+        orm_mode = True
+
 class SkillType(str, Enum):
     HARD = "HARD"
     SOFT = "SOFT"
@@ -31,7 +39,7 @@ class ResumeCreate(BaseModel):
     experience: List[ExperienceSchema]
     education: List[EducationSchema]
     skills: List[SkillSchema]
-
+    resumes: List[JobShort] = []
 
 class ResumeResponse(BaseModel):
     id: int

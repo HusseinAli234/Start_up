@@ -1,17 +1,20 @@
 # main.py
 import os
 import aiofiles
-import shutil
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import engine, get_db
-from app.models.job_seekers import Base
+from app.models import Base
 from app.schemas.resume_schema import ResumeCreate
-from app.services import cv_services, resume_service
+from app.services import cv_services, resume_service,vacancy_service
 from contextlib import asynccontextmanager
 from pydantic import ValidationError
 from app.routers import job_seekers as job_seekers_router
+from app.routers import vacancy as vacancy_router
+from typing import Optional
+from fastapi import Query
+from app.schemas.vacancy_schema import VacancyCreate
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -25,6 +28,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(job_seekers_router.router)
+app.include_router(vacancy_router.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,7 +44,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @app.post("/upload_pdf")
-async def upload_pdf(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+async def upload_pdf(file: UploadFile = File(...), db: AsyncSession = Depends(get_db),vacancy_id: Optional[int] = Query(default=None)):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
 
@@ -63,6 +67,14 @@ async def upload_pdf(file: UploadFile = File(...), db: AsyncSession = Depends(ge
         raise HTTPException(status_code=400, detail=f"Data validation error: {e.errors()}")
 
     service = resume_service.ResumeService(db)
-    db_resume = await service.create_resume(resume_data)
+    db_resume = await service.create_resume(resume_data, vacancy_id=vacancy_id)
     
     return JSONResponse(content={"id": db_resume.id, "fullname": db_resume.fullname, "location": db_resume.location})
+
+
+
+@app.post("/vacancy_post")
+async def upload_vacancy(vacancy: VacancyCreate ,db:AsyncSession = Depends(get_db)):
+    service =  vacancy_service.JobPostingService(db)
+    db_vacancy = await service.create_job_posting(vacancy)
+    return JSONResponse(content={"id": db_vacancy.id, "title": db_vacancy.title, "location": db_vacancy.location})

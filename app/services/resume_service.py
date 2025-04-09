@@ -1,16 +1,29 @@
-# resume_service.py
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.job_seekers import Resume, Education, Experience, Skill, TypeSkill
 from app.schemas.resume_schema import ResumeCreate
 from sqlalchemy.orm import selectinload
 from sqlalchemy import delete
+from app.models.employers import JobPosting
+from fastapi import FastAPI, HTTPException
+
+app = FastAPI()
+
+items = {"foo": "The Foo Wrestlers"}
+
+
+@app.get("/items/{item_id}")
+async def read_item(item_id: str):
+    if item_id not in items:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"item": items[item_id]}
 
 class ResumeService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_resume(self, resume_data: ResumeCreate) -> Resume:
+    async def create_resume(self, resume_data: ResumeCreate,vacancy_id: int | None = None) -> Resume:
         db_resume = Resume(
             fullname=resume_data.fullname,
             location=resume_data.location,
@@ -32,6 +45,11 @@ class ResumeService:
                 for skill in resume_data.skills
             ]
         )
+        if vacancy_id:
+            job = await self.db.get(JobPosting, vacancy_id)
+            if not job:
+                raise HTTPException(status_code=404, detail="Vacancy not found")
+        db_resume.job_postings.append(job)
         self.db.add(db_resume)
         await self.db.commit()  # commit должен быть асинхронным
         await self.db.refresh(db_resume)  # обновление объекта после сохранения

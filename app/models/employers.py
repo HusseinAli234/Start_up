@@ -1,22 +1,50 @@
-from sqlalchemy import String,ForeignKey,Boolean,Integer,Column
-from sqlalchemy.orm import relationship
-from app.database import Base
+# models.py
+from app.models import Base
+from sqlalchemy.orm import  Mapped, mapped_column, relationship
+from sqlalchemy import Integer, String, ForeignKey
+from app.models.association import resume_job_association
+
+
 
 class EmployerProfile(Base):
-    __tablename__="employers"
-    id = Column(Integer,primary_key=True,index=True)
-    company_name=Column(String,index=True)
-    location=Column(String,index=True)
-    industry=Column(String,index=True)
-    description=Column(String,index=True)
-    job_posting=relationship('JobPosting',back_populates='employers')
+    __tablename__ = "employers"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    company_name: Mapped[str] = mapped_column(String, index=True)
+    location: Mapped[str] = mapped_column(String, index=True)
+    industry: Mapped[str] = mapped_column(String, index=True)
+    description: Mapped[str] = mapped_column(String, index=True)
+
+    job_postings: Mapped[list["JobPosting"]] = relationship(
+        "JobPosting", back_populates="employer", cascade="all, delete-orphan"
+    )
+
+
 
 class JobPosting(Base):
-    __tablename__="job_postings"
-    id = Column(Integer,primary_key=True,index=True)
-    title=Column(String,index=True)
-    description=Column(String,index=True)
-    location=Column(String,index=True)
-    salary=Column(Integer,index=True)
-    employer_id=Column(Integer,ForeignKey('employers.id'))
-    employer = relationship('EmployerProfile',back_populates='job_postings')
+    __tablename__ = "job_postings"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String, index=True)
+    description: Mapped[str] = mapped_column(String, index=True)
+    location: Mapped[str] = mapped_column(String, index=True)
+    salary: Mapped[int] = mapped_column(Integer, index=True)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("employers.id"),nullable=True)
+
+    employer: Mapped["EmployerProfile"] = relationship("EmployerProfile", back_populates="job_postings")
+    skills: Mapped[list["VacancySkill"]] = relationship(
+        "VacancySkill", back_populates="job", cascade="all, delete-orphan"
+    )
+    resumes = relationship(
+        "Resume", secondary=resume_job_association, back_populates="job_postings"
+    )
+
+
+class VacancySkill(Base):
+    __tablename__ = "vacancy_skill"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String, index=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("job_postings.id"))
+
+    job: Mapped["JobPosting"] = relationship("JobPosting", back_populates="skills")

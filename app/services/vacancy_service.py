@@ -1,24 +1,49 @@
-from sqlalchemy.orm import Session
-from app import models, schemas
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-def create_resume(db: Session, resume_data: schemas.ResumeCreate):
-    resume = models.Resume(
-        fullname=resume_data.fullname,
-        location=resume_data.location,
-        experience=resume_data.experience,
-        education=resume_data.education
-    )
-    db.add(resume)
-    db.commit()
-    db.refresh(resume)
+from app.models.employers import VacancySkill
+from app.models.employers import JobPosting  
+from app.schemas.vacancy_schema import VacancyCreate
 
-    for skill in resume_data.skills:
-        new_skill = models.Skill(title=skill.title, level=skill.level, resume_id=resume.id)
-        db.add(new_skill)
 
-    db.commit()
-    db.refresh(resume)
-    return resume
+class JobPostingService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
 
-def get_resume(db: Session, resume_id: int):
-    return db.query(models.Resume).filter(models.Resume.id == resume_id).first()
+    async def create_job_posting(self, job_data: VacancyCreate) -> JobPosting:
+        db_job = JobPosting(
+            title=job_data.title,
+            location=job_data.location,
+            description=job_data.description,
+            salary=job_data.salary,
+            skills=[
+                VacancySkill(
+                    title=skill.title,
+                )
+                for skill in job_data.skills
+            ]
+        )
+        self.db.add(db_job)
+        await self.db.commit()
+        await self.db.refresh(db_job)
+        return db_job
+
+    async def get_job_posting(self, job_id: int) -> JobPosting:
+        result = await self.db.execute(
+            select(JobPosting)
+            .options(
+                selectinload(JobPosting.skills),
+                selectinload(JobPosting.resumes)
+            )
+            .where(JobPosting.id == job_id)
+        )
+        return result.scalars().first()
+
+    async def delete_job_posting(self, job_id: int) -> JobPosting:
+        job = await self.get_job_posting(job_id)
+        if not job:
+            return None
+        await self.db.delete(job)
+        await self.db.commit()
+        return job

@@ -1,11 +1,9 @@
 # models.py
 import enum
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import  Mapped, mapped_column, relationship
 from sqlalchemy import Integer, String, Float, ForeignKey, Enum as SAEnum
-
-
-class Base(DeclarativeBase):
-    pass
+from app.models import Base
+from app.models.association import resume_job_association
 
 
 class TypeSkill(enum.Enum):
@@ -22,6 +20,9 @@ class Resume(Base):
     skills: Mapped[list["Skill"]] = relationship("Skill", back_populates="resume", cascade="all, delete-orphan")
     educations: Mapped[list["Education"]] = relationship("Education", back_populates="resume", cascade="all, delete-orphan")
     experiences: Mapped[list["Experience"]] = relationship("Experience", back_populates="resume", cascade="all, delete-orphan")
+    job_postings = relationship(
+        "JobPosting", secondary=resume_job_association, back_populates="resumes"
+    )
 
 
 class Education(Base):
@@ -30,7 +31,6 @@ class Education(Base):
     name: Mapped[str] = mapped_column(String, index=True)
     description: Mapped[str] = mapped_column(String, index=True)
     resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"))
-    
     resume: Mapped["Resume"] = relationship("Resume", back_populates="educations")
 
 
@@ -45,7 +45,7 @@ class Experience(Base):
 
 
 class Skill(Base):
-    __tablename__ = "skills"
+    __tablename__ = "resume_skills"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
     level: Mapped[float] = mapped_column(Float, index=True)

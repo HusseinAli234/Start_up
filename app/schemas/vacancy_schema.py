@@ -29,3 +29,6 @@ class VacancyResponse(BaseModel):
 
     class Config:
         orm_mode = True
+class SortResumesResponse(BaseModel):
+    resume: str
+    avg_skill_score: float    

@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 from app.models.employers import JobPosting
 from app.database import get_db
 from app.services.vacancy_service import JobPostingService
-from app.schemas.vacancy_schema import VacancyResponse
+from app.schemas.vacancy_schema import VacancyResponse,SortResumesResponse
 from typing import List
 from sqlalchemy.orm import selectinload
 from app.database import AsyncSessionLocal
@@ -42,6 +42,12 @@ async def delete_vacancy(vacancy_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Vacancy not found")
     
     return {"message": "Vacancy deleted successfully"}
-
+@router.get("/sort/{vacancy_id}",response_model=List[SortResumesResponse])
+async def sort_resumes(vacancy_id: int, db: AsyncSession = Depends(get_db)):
+    service = JobPostingService(db)
+    resumes = await service.sort_by_hard(vacancy_id)
+    if not resumes:
+        raise HTTPException(status_code=404, detail="Resumes didn't upload")
+    return resumes
 
 

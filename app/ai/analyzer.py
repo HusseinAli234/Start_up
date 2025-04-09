@@ -13,7 +13,6 @@ client = genai.Client(
     )
 
 def analyze_resume(user_prompt:str): 
-    user_prompt += social_network_analyzer(user_prompt)
     model = "gemini-2.0-flash"
     contents = [
         types.Content(
@@ -95,8 +94,8 @@ def analyze_resume(user_prompt:str):
         ),
         system_instruction=[
             types.Part.from_text(text="""Ты — эксперт по анализу и структурированию данных из резюме. Твоя задача — взять текст резюме и преобразовать его в строго форматированный JSON-объект для хранения в базе данных:
-                , HARD скиллы ОЦЕНИВАЙ ОЧЕНЬ СТРОГО(90 - это Senior, 60 - Middle, 35 - Junior, 15 - Новичок),ЛУЧШЕ ПОСТАВЬ НИЖЕ ЧЕМ ВЫШЕ РЕАЛЬНОГО, а SOFT скилы оценивай просто СТРОГО, не делай описание длинным , пиши только суть , если просто упоминается навык то ставь ниже 15,ТАКЖЕ В КОНЦЕ РЕЗЮМЕ ТЕБЕ ДАНА ИНФОРМАЦИЯ ИЗ СОЦ СЕТЕЙ ПРО КАНДИДАТА, 
-                                 нужно чтобы данные которые попадут в поле experience были сжаты нужна только основаня ифнормация, а не все что есть в резюме, только поле experience нужно сжать, education и skills оставь как есть,"""),
+                , HARD скиллы ОЦЕНИВАЙ ОЧЕНЬ СТРОГО(90 - это Senior, 60 - Middle, 35 - Junior, 15 - Новичок),SOFT СКИЛЛЫ НЕ ОЦЕНИВАЙ ,ИХ НЕТУ,ЛУЧШЕ ПОСТАВЬ НИЖЕ ЧЕМ ВЫШЕ РЕАЛЬНОГО, не делай описание длинным , пиши только суть , если просто упоминается навык то ставь ниже 15, 
+                                 нужно чтобы данные которые попадут в поле experience были сжаты нужна только основаня ифнормация, а не все что есть в резюме, только поле experience нужно сжать, education и skills оставь как есть, ПИШИ НА АНГЛИЙСКОМ"""),
         ],
     )
 
@@ -106,7 +105,7 @@ def analyze_resume(user_prompt:str):
         config=generate_content_config,
     )
 
-    print(response.to_json_dict()['candidates'][0]['content']['parts'][0]['text'])
+    # print(response.to_json_dict()['candidates'][0]['content']['parts'][0]['text'])
     json_text = response.to_json_dict()['candidates'][0]['content']['parts'][0]['text']
     
     try:

@@ -16,6 +16,14 @@ from typing import Optional
 from fastapi import Query
 from app.schemas.vacancy_schema import VacancyCreate
 from fastapi.middleware.cors import CORSMiddleware
+from app.ai.social_analyzer import analyze_social
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
+executor = ThreadPoolExecutor()
+
+async def run_in_thread(func, *args):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, func, *args)
 
 
 @asynccontextmanager
@@ -65,10 +73,13 @@ async def upload_pdf(file: UploadFile = File(...), db: AsyncSession = Depends(ge
         resume_data = ResumeCreate(**parsed_data)
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=f"Data validation error: {e.errors()}")
-
     service = resume_service.ResumeService(db)
     db_resume = await service.create_resume(resume_data, vacancy_id=vacancy_id)
-    
+    async def background_task():
+        text = cv_services.parse_pdf_to_text(file_path)
+        social_skills = await run_in_thread(analyze_social, text)
+        await service.resume_skill_add(db_resume.id, social_skills)
+    asyncio.create_task(background_task()) 
     return JSONResponse(content={"id": db_resume.id, "fullname": db_resume.fullname, "location": db_resume.location})
 
 

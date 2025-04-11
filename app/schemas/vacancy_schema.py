@@ -15,6 +15,7 @@ class VacancyCreate(BaseModel):
     title: str
     location: str
     description: str
+    requirements: str
     salary: str
     skills: List[SkillSchema]
     resumes: List[ResumeShort] = []
@@ -23,6 +24,7 @@ class VacancyResponse(BaseModel):
     id: int
     title: str
     location: str
+    requirements: str
     skills: List[SkillSchema] 
     description: str 
     resumes: List[ResumeShort] = []

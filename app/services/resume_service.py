@@ -11,14 +11,6 @@ from fastapi import FastAPI, HTTPException
 
 app = FastAPI()
 
-items = {"foo": "The Foo Wrestlers"}
-
-
-@app.get("/items/{item_id}")
-async def read_item(item_id: str):
-    if item_id not in items:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return {"item": items[item_id]}
 
 class ResumeService:
     def __init__(self, db: AsyncSession):
@@ -28,33 +20,40 @@ class ResumeService:
         db_resume = Resume(
             fullname=resume_data.fullname,
             location=resume_data.location,
-            experiences=[
-                Experience(name=exp.name, description=exp.description)
+            total = resume_data.total
+        )
+    
+       
+
+        db_resume.experiences = [
+                Experience(name=exp.name, description=exp.description, resume=db_resume)
                 for exp in resume_data.experience
-            ],
-            educations=[
-                Education(name=edu.name, description=edu.description)
+            ]
+        db_resume.educations = [
+                Education(name=edu.name, description=edu.description, resume=db_resume)
                 for edu in resume_data.education
-            ],
-            skills=[
+            ]
+        db_resume.skills = [
                 Skill(
                     title=skill.title,
                     level=skill.level,
                     justification=skill.justification,
-                    type=TypeSkill(skill.type)
+                    type=TypeSkill(skill.type),
+                    resume=db_resume
                 )
                 for skill in resume_data.skills
-            ]
-        )
-
-        if vacancy_id:
-            # Если задан id вакансии, пытаемся получить вакансию
-            job = await self.db.get(JobPosting, vacancy_id)
-            if not job:
-                raise HTTPException(status_code=404, detail="Vacancy not found")
-            db_resume.job_postings.append(job)
-
-        self.db.add(db_resume)
+            ]    
+        with self.db.no_autoflush:
+            self.db.add(db_resume)    
+            self.db.add_all(db_resume.experiences)
+            self.db.add_all(db_resume.educations)
+            self.db.add_all(db_resume.skills)
+            if vacancy_id:
+                # Если задан id вакансии, пытаемся получить вакансию
+                job = await self.db.get(JobPosting, vacancy_id)
+                if not job:
+                    raise HTTPException(status_code=404, detail="Vacancy not found")
+                db_resume.job_postings.append(job)
         await self.db.commit()  # асинхронный commit
         await self.db.refresh(db_resume)  # обновляем объект после сохранения
         return db_resume

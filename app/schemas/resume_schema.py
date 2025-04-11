@@ -36,6 +36,7 @@ class ExperienceSchema(BaseModel):
 class ResumeCreate(BaseModel):
     fullname: str
     location: str
+    total: int
     experience: List[ExperienceSchema]
     education: List[EducationSchema]
     skills: List[SkillSchema]
@@ -45,6 +46,7 @@ class ResumeResponse(BaseModel):
     id: int
     fullname: str
     location: str
+    total: int
     skills: List[SkillSchema] 
     educations: List[EducationSchema]  
     experiences: List[ExperienceSchema] 

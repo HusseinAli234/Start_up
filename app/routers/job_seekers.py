@@ -34,6 +34,10 @@ async def get_resume_by_id(resume_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Resume not found")
     return resume
 
+# @router.post("/save_result/{resume_id}")
+# async def save_test_result(resume_id:int,db:AsyncSession = Depends(get_db)):
+
+
 
 @router.delete("/{resume_id}")
 async def delete_resume(resume_id: int, db: AsyncSession = Depends(get_db)):

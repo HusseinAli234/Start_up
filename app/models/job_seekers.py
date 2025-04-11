@@ -16,12 +16,12 @@ class Resume(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     fullname: Mapped[str] = mapped_column(String, index=True)
     location: Mapped[str] = mapped_column(String, index=True)
-    
+    total: Mapped[float] = mapped_column(Float,index=True)
     skills: Mapped[list["Skill"]] = relationship("Skill", back_populates="resume", cascade="all, delete-orphan")
-    educations: Mapped[list["Education"]] = relationship("Education", back_populates="resume", cascade="all, delete-orphan")
-    experiences: Mapped[list["Experience"]] = relationship("Experience", back_populates="resume", cascade="all, delete-orphan")
+    educations: Mapped[list["Education"]] = relationship("Education", back_populates="resume", cascade="all, delete-orphan",lazy="selectin")
+    experiences: Mapped[list["Experience"]] = relationship("Experience", back_populates="resume", cascade="all, delete-orphan",lazy="selectin")
     job_postings = relationship(
-        "JobPosting", secondary=resume_job_association, back_populates="resumes"
+        "JobPosting", secondary=resume_job_association, back_populates="resumes",lazy="selectin"
     )
 
 
@@ -31,7 +31,7 @@ class Education(Base):
     name: Mapped[str] = mapped_column(String, index=True)
     description: Mapped[str] = mapped_column(String, index=True)
     resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"))
-    resume: Mapped["Resume"] = relationship("Resume", back_populates="educations")
+    resume: Mapped["Resume"] = relationship("Resume", back_populates="educations",lazy="selectin")
 
 
 class Experience(Base):
@@ -41,7 +41,7 @@ class Experience(Base):
     description: Mapped[str] = mapped_column(String, index=True)
     resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"))
     
-    resume: Mapped["Resume"] = relationship("Resume", back_populates="experiences")
+    resume: Mapped["Resume"] = relationship("Resume", back_populates="experiences",lazy="selectin")
 
 
 class Skill(Base):
@@ -53,4 +53,4 @@ class Skill(Base):
     resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"))
     type: Mapped[TypeSkill] = mapped_column(SAEnum(TypeSkill), nullable=False, default=TypeSkill.HARD)
     
-    resume: Mapped["Resume"] = relationship("Resume", back_populates="skills")
+    resume: Mapped["Resume"] = relationship("Resume", back_populates="skills",lazy="selectin")

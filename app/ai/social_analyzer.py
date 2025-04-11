@@ -251,12 +251,12 @@ async def process_platform(platform, link, dataset_id_map, api_key, bucket_name)
                     for key, value in result_response.json()[0].items()
                 }
                 summary += f"\"{platform}\": " + json.dumps(cleaned_data, ensure_ascii=False, indent=4) + "\n"
-                print(f"     finished for {platform} getting info")
+                # print(f"     finished for {platform} getting info")
                 break
             elif status in ["failed", "unknown"]:
                 return f"{platform}: Failed or unknown status"
             else:
-                print(f"     Waiting... from {platform} getting info")
+                # print(f"     Waiting... from {platform} getting info")
                 await asyncio.sleep(5)
 
     except Exception as e:

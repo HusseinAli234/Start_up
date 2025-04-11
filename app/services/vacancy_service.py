@@ -35,7 +35,7 @@ def skills_match(skill_a: str, skill_b: str, threshold: float = 0.8) -> bool:
 
 class JobPostingService:
     def __init__(self, db: AsyncSession):
-        self.db = db
+        self.db = db    
 
     async def create_job_posting(self, job_data: VacancyCreate) -> JobPosting:
         db_job = JobPosting(
@@ -43,6 +43,7 @@ class JobPostingService:
             location=job_data.location,
             description=job_data.description,
             salary=job_data.salary,
+            requirements = job_data.requirements,
             skills=[
                 VacancySkill(
                     title=skill.title,

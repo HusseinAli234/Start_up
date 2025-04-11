@@ -84,7 +84,11 @@ def analyze_resume(user_prompt:str):
                                 ),
                                 "type": genai.types.Schema(
                                     type = genai.types.Type.STRING,
+<<<<<<< HEAD
                                     enum = ["HARD"],
+=======
+                                    enum = ["HARD", ],
+>>>>>>> 87bfe83e3aabc17883464cf0d0f2c5bd3135e155
                                 ),
                             },
                         ),

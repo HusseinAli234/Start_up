@@ -77,7 +77,7 @@ async def upload_pdf(file: UploadFile = File(...), db: AsyncSession = Depends(ge
     db_resume = await service.create_resume(resume_data, vacancy_id=vacancy_id)
     async def background_task():
         text = cv_services.parse_pdf_to_text(file_path)
-        social_skills = await run_in_thread(analyze_social, text)
+        social_skills = await analyze_social(text)
         await service.resume_skill_add(db_resume.id, social_skills)
     asyncio.create_task(background_task()) 
     return JSONResponse(content={"id": db_resume.id, "fullname": db_resume.fullname, "location": db_resume.location})

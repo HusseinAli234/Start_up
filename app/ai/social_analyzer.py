@@ -12,12 +12,55 @@ import logging
 
 logger = logging.getLogger(__name__)
 load_dotenv()
+import asyncio
+import httpx
+
 
 client = genai.Client(
         api_key=os.environ.get("GEMINI_API_KEY"),
     )
 
-def extract_social_media_links_json(text):
+SELLER_INSTRUCTION = """You are an expert Occupational Psychologist and HR Analyst specializing in evaluating soft skills for SALES roles based on scraped social media profile data (e.g., from LinkedIn, Facebook, Twitter, Instagram provided as JSON or text). Your primary goal is to assess the candidate's suitability for a sales position by identifying relevant soft skills and quantifying them.
+
+**Input:** You will receive data scraped from one or more social media profiles. This might include profile descriptions, posts, comments, interactions, follower/following counts, etc.
+
+**Task:**
+1.  Analyze the provided social media data thoroughly.
+2.  Identify evidence of the following soft skills and their antipodes, specifically considering their relevance to a SALES role:
+    * **Friendliness / Positivity:** Look for positive language, appropriate use of emojis, constructive interactions, supportive comments, polite tone. (Antipode: **Aggressiveness / Irritability** - indicated by negative/hostile language, excessive complaints, arguments, overuse of aggressive punctuation like multiple exclamation marks!!!). A high level of the antipode *reduces* the score for Friendliness.
+    * **Neatness / Responsibility / Attention to Detail:** Look for well-structured posts, correct grammar and punctuation, clear language, professional presentation (especially on LinkedIn), consistency in profile information. (Antipode: **Sloppiness / Lack of Detail** - indicated by frequent typos, grammatical errors, poor formatting, unclear communication, inconsistent information). A high level of the antipode *reduces* the score for Neatness/Responsibility.
+    * **Communication Clarity:** Assess if posts and comments are easy to understand, concise, and well-articulated. Relevant for explaining products/services.
+    * **Professionalism (especially LinkedIn):** Evaluate the appropriateness of content shared, tone used in professional contexts, relevance of connections or discussions to their field (if data available).
+    * **Engagement / Proactivity:** Analyze the frequency and nature of posts/interactions. Consistent, relevant activity *might* indicate proactivity or strong networking skills (useful for sales), but differentiate this from random, unfocused high activity. Avoid simply concluding high frequency means "too busy".
+3.  For **each relevant soft skill identified**, assign a 'level' score from 0 to 100 based *strictly* on the evidence found in the provided data. 0 means no evidence or strong evidence of the antipode; 100 means very strong positive evidence.
+4.  Provide a concise 'justification' for each skill's score, referencing specific examples or patterns observed in the data (e.g., "Frequent grammatical errors in posts reduce Neatness score", "Consistently positive interactions observed, boosting Friendliness score").
+5.  Calculate an aggregate **'soft_total'** score object.
+    * The 'total' score (0-100) within 'soft_total' should reflect your overall assessment of the candidate's soft skill profile *for a sales role*, based *only* on the evaluated soft skills and their assigned levels.
+    * Provide a 'justification' for the 'soft_total' score, summarizing the key strengths and weaknesses observed across the relevant soft skills (e.g., "Strong communication and friendliness, but lacks attention to detail, resulting in a moderate overall soft skill score for sales.").
+6.  **Output:** Generate a single JSON object adhering strictly to the provided schema:
+    ```json
+    {
+      "soft_total": {
+        "total": <integer, 0-100>,
+        "justification": "<string>"
+      },
+      "skills": [
+        {
+          "title": "<Soft Skill Name>",
+          "level": <integer, 0-100>,
+          "justification": "<string>",
+          "type": "SOFT"
+        }
+        // ... more skill objects if identified
+      ]
+    }
+    ```
+7.  **Language:** The entire JSON output, including all strings (titles, justifications), MUST be in English.
+8.  **Insufficient Data:** If the input data is empty or contains insufficient information to make a meaningful assessment for *any* skill, return the following JSON structure: `{"soft_total": {"total": 0, "justification": "Insufficient data provided for analysis."}, "skills": []}`. Do not attempt to guess or extrapolate without evidence.
+
+Analyze the provided social media information rigorously and objectively based on these instructions."""        
+
+async def extract_social_media_links_json(text):
     """Extracts social media profile links from text."""
     social_media_patterns = {
         "facebook": r"(?:https?:\/\/)?(?:www\.)?facebook\.com\/[A-Za-z0-9_\-\.]+/?",
@@ -38,176 +81,165 @@ def extract_social_media_links_json(text):
 
     return social_media_links
 
-def social_network_analyzer(str):
-    text_to_extract = str
-    summary = f""""""
 
 
-    dataset_id_map = {
-        "instagram": "gd_l1vikfch901nx3by4",
-        "linkedin": "gd_l1viktl72bvl7bjuj0",
-        "facebook": "gd_lkaxegm826bjpoo9m5",
-        "twitter": "gd_lwxmeb2u1cniijd7t4", 
+async def process_platform(platform, link, dataset_id_map, api_key, bucket_name):
+    summary = ""
+    if platform not in dataset_id_map:
+        return f"  -> Warning: No dataset_id configured for platform '{platform}'. Skipping.\n"
+
+    current_dataset_id = dataset_id_map[platform]
+    input_data = [{"url": link}]
+    trigger_payload = {
+        "deliver": {
+            "type": "s3",
+            "filename": {"template": f"{platform}_{{[snapshot_id]}}", "extension": "json"},
+            "bucket": bucket_name,
+            "directory": ""
+        },
+        "input": input_data,
     }
 
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
 
-    BRIGHTDATA_API_KEY = "b8ca1069f855a70d33248d585a12a2f7443f585bf840ad45a97605b5bf1f72d4" # Use your actual API key
-    TRIGGER_URL = "https://api.brightdata.com/datasets/v3/trigger"
-    PROGRESS_URL_BASE = "https://api.brightdata.com/datasets/v3/progress/"
-    SNAPSHOT_URL_BASE = "https://api.brightdata.com/datasets/v3/snapshot/"
-    S3_BUCKET_NAME = "start_up"
+    async with httpx.AsyncClient() as client:
+        try:
+            # Step 1: Trigger data extraction
+            trigger_response = await client.post(
+                "https://api.brightdata.com/datasets/v3/trigger",
+                headers=headers,
+                params={"dataset_id": current_dataset_id, "include_errors": "true"},
+                json=trigger_payload
+            )
+            trigger_response.raise_for_status()
+            snapshot_id = trigger_response.json().get("snapshot_id")
 
+            if not snapshot_id:
+                return f"{platform}: Failed to get snapshot_id"
 
+            # Step 2: Polling until status is ready
+            while True:
+                progress_response = await client.get(
+                    f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}",
+                    headers={"Authorization": f"Bearer {api_key}"}
+                )
+                progress_response.raise_for_status()
+                status = progress_response.json().get("status", "unknown")
 
+                if status == "ready":
+                    result_response = await client.get(
+                        f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                        headers={"Authorization": f"Bearer {api_key}"},
+                        params={"format": "json", "batch_size": 1500}
+                    )
+                    result_response.raise_for_status()
+                    json_data = result_response.json()
 
-    extracted_links = extract_social_media_links_json(text_to_extract)
-    print("Extracted Links:")
-    print(json.dumps(extracted_links, indent=2))
-    print("-" * 30)
+                    if not json_data:
+                        return f"{platform}: Empty result."
 
+                    cleaned_data = {
+                        key: (value[:3] if isinstance(value, list) and value else value)
+                        for key, value in json_data[0].items()
+                    }
+                    summary += f"\"{platform}\": " + json.dumps(cleaned_data, ensure_ascii=False, indent=4) + "\n"
+                    print(f"     Finished for {platform}")
+                    break
+                elif status in ["failed", "unknown"]:
+                    return f"{platform}: Failed or unknown status"
+                else:
+                    print(f"     Waiting on {platform}...")
+                    await asyncio.sleep(5)
 
-    if not extracted_links:
-        print("No social media links found in the text.")
-    else:
-        for platform, link in extracted_links.items():
-            print(f"Processing {platform.capitalize()} link: {link}")
-
-    
-            if platform not in dataset_id_map:
-                print(f"  -> Warning: No dataset_id configured for platform '{platform}'. Skipping.")
-                print("-" * 30)
-                continue 
-
-            current_dataset_id = dataset_id_map[platform]
-            print(f"  -> Using dataset_id: {current_dataset_id}")
-
-            
-            input_data = [{"url": link}]
-            trigger_params = {
-                "dataset_id": current_dataset_id,
-                "include_errors": "true",
-                "limit_per_input": "1",
-            }
-            trigger_headers = {
-                "Authorization": f"Bearer {BRIGHTDATA_API_KEY}",
-                "Content-Type": "application/json",
-            }
-
-            trigger_payload = {
-                "deliver": {
-                    "type": "s3",
-                    "filename": {"template": f"{platform}_{{[snapshot_id]}}", "extension": "json"},
-                    "bucket": S3_BUCKET_NAME,
-                    "batch_size":10,
-                    "directory": "" 
-                },
-                "input": input_data,
-            }
-
-        
-            try:
-                print(f"  -> Triggering job...")
-                response = requests.post(TRIGGER_URL, headers=trigger_headers, params=trigger_params, json=trigger_payload)
-                response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
-                response_data = response.json()
-
-                if "snapshot_id" not in response_data:
-                    print(f"  -> Error: 'snapshot_id' not found in trigger response: {response_data}")
-                    print("-" * 30)
-                    continue # Skip to next link
-
-                snapshot_id = response_data["snapshot_id"]
-                print(f"  -> Job triggered successfully. Snapshot ID: {snapshot_id}")
-
-                # 4. Poll for job completion
-                progress_headers = {
-                    "Authorization": f"Bearer {BRIGHTDATA_API_KEY}",
-                }
-                progress_url = f"{PROGRESS_URL_BASE}{snapshot_id}"
-                print(f"  -> Monitoring progress...")
-
-                while True:
-                    try:
-                        progress_response = requests.get(progress_url, headers=progress_headers)
-                        progress_response.raise_for_status()
-                        progress_data = progress_response.json()
-                        status = progress_data.get("status", "unknown") # Default to 'unknown' if status key is missing
-                        print(f"     Current status: {status}")
-
-                        if status == "ready":
-                            print(f"  -> Job completed successfully!")
-                            try:
-                                result_url = f"{SNAPSHOT_URL_BASE}{snapshot_id}"
-                                result_params = {"format": "json","batch_size":1500}
-                                result_response = requests.get(result_url, headers=progress_headers, params=result_params)
-                                result_response.raise_for_status()
-                                print(type(result_response.json()[0]))
-                                cleaned_data = {
-                                key: (value[:2] if isinstance(value, list) and value else value)
-                                    for key, value in result_response.json()[0].items()
-                                }                         
-                                print("  -> Results:")
-                                text_data = json.dumps(cleaned_data, ensure_ascii=False, indent=4)
-                                summary += f"\"{platform}\":" +  text_data + "\n"
-                            except requests.exceptions.RequestException as e:
-                                print(f"  -> Error fetching results: {e}")
-                            except json.JSONDecodeError:
-                                print(f"  -> Error decoding result JSON: {result_response.text}")
-                            break
-
-                        elif status == "failed":
-                            print(f"  -> Error: Job failed.")
-                            # You might want to log progress_data here for debugging
-                            print(f"     Failure details: {progress_data}")
-                            break # Exit the while loop for this job
-
-                        elif status == "unknown":
-                            print(f"  -> Warning: Could not determine job status from response: {progress_data}")
-                            # Decide how to handle: break, continue polling, etc.
-                            # For safety, let's break after a warning.
-                            break
-
-                        else:
-                            # Status is likely 'processing' or similar, wait and poll again
-                            print(f"     Waiting...")
-                            time.sleep(5) # Wait 5 seconds before checking again
-
-                    except requests.exceptions.RequestException as e:
-                        print(f"  -> Error checking progress: {e}")
-                        print(f"     Stopping polling for snapshot {snapshot_id}.")
-                        break # Exit the while loop on network or HTTP error during polling
-                    except json.JSONDecodeError:
-                        print(f"  -> Error decoding progress JSON: {progress_response.text}")
-                        print(f"     Stopping polling for snapshot {snapshot_id}.")
-                        break # Exit the while loop if progress response is not valid JSON
-
-            except requests.exceptions.RequestException as e:
-                print(f"  -> Error triggering Bright Data job for {platform} ({link}): {e}")
-                # Print response body if available for more context
-                if e.response is not None:
-                    print(f"     Response status: {e.response.status_code}")
-                    print(f"     Response text: {e.response.text}")
-            except Exception as e:
-                print(f"  -> An unexpected error occurred during triggering for {platform}: {e}")
-
-
-            print("-" * 30) 
-    print("Finished processing all found links.")  
+        except httpx.HTTPError as e:
+            return f"{platform}: HTTP error - {str(e)}"
+        except Exception as e:
+            return f"{platform}: Unexpected error - {str(e)}"
 
     return summary
 
 
+async def social_network_analyzer(text_to_extract):
+    dataset_id_map = {
+        "instagram": "gd_l1vikfch901nx3by4",
+        "linkedin": "gd_l1viktl72bvl7bjuj0",
+        "facebook": "gd_lkaxegm826bjpoo9m5",
+        "twitter": "gd_lwxmeb2u1cniijd7t4",
+    }
+
+    BRIGHTDATA_API_KEY = "b8ca1069f855a70d33248d585a12a2f7443f585bf840ad45a97605b5bf1f72d4"
+    S3_BUCKET_NAME = "start_up"
+
+    extracted_links = await extract_social_media_links_json(text_to_extract)
+    if not extracted_links:
+        return "No social media links found."
+    
+    tasks = [
+        process_platform(platform, link, dataset_id_map, BRIGHTDATA_API_KEY, S3_BUCKET_NAME)
+        for platform, link in extracted_links.items()
+    ]
+
+    results = await asyncio.gather(*tasks)
+    return "\n".join(results)
 
 
 
+async def analyze_proffesion(title: str, description: str, requirement: str) -> str:
+    prompt = f"""
+You are an HR expert. Given the job title, description, and requirements, classify the job into one of the following categories:
+
+- IT
+- seller
+- manager
+
+Only return one of the exact strings above. Do not explain.
+
+Title: {title}
+Description: {description}
+Requirements: {requirement}
+"""
+
+    model = "gemini-2.0-flash"
+    try:
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])] ,
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                response_mime_type="text/plain"
+            ),
+        )
+
+        # Извлекаем ответ
+        text = response.text.strip().lower()
+        allowed = {"it", "seller", "manager"}
+
+        # Валидация
+        if text not in allowed:
+            raise ValueError(f"Invalid classification returned: {text}")
+        return text
+
+    except Exception as e:
+        print(f"Error in profession analysis: {e}")
+        return "seller"  # fallback на дефолт
+
+     
+    
 
 
-def analyze_social(pdf_info:str): 
-    social_info  = social_network_analyzer(pdf_info)
-    if not social_info.strip():
-        # Если нет данных для анализа — сразу возвращаем пустой результат
-        logger.warning("analyze_social: social_info пустой, пропускаем анализ")
-        return []
+async def analyze_social(pdf_info:str,title:str,description:str,requirements:str): 
+    social_info  = await social_network_analyzer(pdf_info)
+    profession = await analyze_proffesion(title,description,requirements)
+    system_instructions = {
+        "seller": SELLER_INSTRUCTION,  # уже используется
+        "it": """You are a senior tech recruiter and behavioral analyst specializing in identifying IT-relevant soft skills from social media presence (LinkedIn, GitHub profiles, Twitter tech threads, etc.). Focus on traits like logical thinking, communication, curiosity, collaboration, consistency, and professionalism in online communication. Use evidence to assign scores and justify clearly.""",
+        "manager": """You are a professional organizational psychologist analyzing managerial soft skills based on social media. Look for leadership, decision-making, emotional intelligence, delegation, motivation, and strategic thinking. Score only if evidence is found. Justify each score clearly with examples."""
+    }
+
+    chosen_instruction = system_instructions.get(profession, system_instructions["seller"])
     model = "gemini-2.0-flash"
     contents = [
         types.Content(
@@ -221,63 +253,90 @@ def analyze_social(pdf_info:str):
         temperature=0.4,
         response_mime_type="application/json",
         response_schema=genai.types.Schema(
-            type = genai.types.Type.ARRAY,
-            items = genai.types.Schema(
-                        type = genai.types.Type.ARRAY,
-                        items = genai.types.Schema(
-                            type = genai.types.Type.OBJECT,
-                            required = ["title", "level", "justification", "type"],
-                            properties = {
-                                "title": genai.types.Schema(
-                                    type = genai.types.Type.STRING,
-                                ),
-                                "level": genai.types.Schema(
-                                    type = genai.types.Type.INTEGER,
-                                ),
-                                "justification": genai.types.Schema(
-                                    type = genai.types.Type.STRING,
-                                ),
-                                "type": genai.types.Schema(
-                                    type = genai.types.Type.STRING,
-                                    enum = ["SOFT"],
-                                ),
-                            },
-                        ),
+        # Ожидаем один ОБЪЕКТ на выходе
+        type=genai.types.Type.OBJECT,
+        required=["soft_total", "skills"], # Указываем обязательные поля
+        properties={
+            # Объект для итоговой оценки soft-скиллов
+            "soft_total": genai.types.Schema(
+                type=genai.types.Type.OBJECT,
+                required=["total", "justification"],
+                properties={
+                    "total": genai.types.Schema(
+                        type=genai.types.Type.INTEGER,
+                        description="Aggregate score (0-100) based ONLY on evaluated soft skills relevant to sales."
                     ),
-    
-        ),
+                    "justification": genai.types.Schema(
+                        type=genai.types.Type.STRING,
+                        description="Brief explanation for the aggregate soft_total score."
+                    ),
+                },
+                description="Overall assessment based purely on the relevant soft skills identified."
+            ),
+            # Массив для отдельных soft-скиллов
+            "skills": genai.types.Schema(
+                type=genai.types.Type.ARRAY,
+                description="List of identified soft skills relevant to sales.",
+                items=genai.types.Schema(
+                    type=genai.types.Type.OBJECT,
+                    required=["title", "level", "justification", "type"],
+                    properties={
+                        "title": genai.types.Schema(type=genai.types.Type.STRING),
+                        "level": genai.types.Schema(
+                            type=genai.types.Type.INTEGER,
+                            description="Proficiency score (0-100) based on social media evidence."
+                        ),
+                        "justification": genai.types.Schema(type=genai.types.Type.STRING),
+                        "type": genai.types.Schema(
+                            type=genai.types.Type.STRING,
+                            enum=["SOFT"] # Указываем тип как SOFT
+                        ),
+                    },
+                ),
+            ),
+        }
+    ),
          system_instruction=[
-            types.Part.from_text(text="""Ты опытный психолог который может определять по данным из соц сетей софт скиллы
-            человека и отправлять их в json формате, исходя из соцсетей ты должен делать анализ,оценку ставь от 0 до 100,Пиши на английском!!, Если промпт пустой то ничего не возвращай"""),
-        ],
+            types.Part.from_text(text=chosen_instruction)],
     )
 
-    response = client.models.generate_content(
-        model=model,
-        contents=contents,
-        config=generate_content_config,
-    )
-
-    print(response.to_json_dict()['candidates'][0]['content']['parts'][0]['text'])
-    json_text = response.to_json_dict()['candidates'][0]['content']['parts'][0]['text']
-    
     try:
-        parsed_json = json.loads(json_text) 
-        print(parsed_json)
+        # !!! Используем await и client.aio !!!
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=contents,
+            config=generate_content_config,
+        )
+
+        # Анализ ответа
+        if hasattr(response, 'text') and response.text:
+             json_text = response.text
+        else:
+             try:
+                  json_text = response.candidates[0].content.parts[0].text
+             except (AttributeError, IndexError, TypeError) as e:
+                  print(f"Error accessing response parts via candidates structure. Response: {response}. Error: {e}")
+                  raise ValueError("Could not extract text from AI response using known methods.")
+
+    except Exception as e:
+        print(f"Error during Gemini API call with client.aio.models.generate_content: {type(e).__name__}: {e}")
+        raise ValueError(f"Error during AI generation: {e}")
+
+    # 5. Парсинг ответа
+    try:
+
+        parsed_json = json.loads(json_text)
+        if not isinstance(parsed_json, dict):
+             raise json.JSONDecodeError(f"Response is not a JSON object (got {type(parsed_json)})", json_text, 0)
+
     except json.JSONDecodeError as e:
-        logger.error(f"Ошибка декодирования JSON в analyze_social: {e}; текст: {json_text!r}")
-        return []
-    
-    if not isinstance(parsed_json, list):
-        logger.error(f"analyze_social: ожидаем список, получили {type(parsed_json)}")
-        return []
-
-    if len(parsed_json) == 0:
-        logger.warning("analyze_social: модель вернула пустой список")
-        return []
-
-    # Всё ок, возвращаем первый элемент
-    return parsed_json[0]
+        (f"Raw AI response that failed JSON parsing:\n---\n{json_text}\n---")
+        raise ValueError(f"Ошибка декодирования JSON: {e}. Ответ ИИ: {json_text}")
+    except Exception as e:
+        print(f"Unexpected error during JSON parsing: {e}")
+        raise ValueError(f"Unexpected error parsing JSON: {e}")
+    print(parsed_json)
+    return parsed_json
     
 
 

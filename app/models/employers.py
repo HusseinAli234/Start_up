@@ -13,18 +13,19 @@ class JobPosting(Base):
     title: Mapped[str] = mapped_column(String, index=True)
     description: Mapped[str] = mapped_column(String, index=True)
     location: Mapped[str] = mapped_column(String, index=True)
+    requirements: Mapped[str] = mapped_column(String,index=True)
     salary: Mapped[int] = mapped_column(Integer, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     user: Mapped["User"] = relationship("User", back_populates="user_job_postings")
 
     skills: Mapped[list["VacancySkill"]] = relationship(
-        "VacancySkill",
-        back_populates="job",
+        "VacancySkill", 
+        back_populates="job", 
         cascade="all, delete-orphan"
     )
     resumes = relationship(
-        "Resume",
-        secondary=resume_job_association,
+        "Resume", 
+        secondary=resume_job_association, 
         back_populates="job_postings"
     )
 
@@ -37,4 +38,4 @@ class VacancySkill(Base):
     title: Mapped[str] = mapped_column(String, index=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("job_postings.id"))
 
-    job: Mapped["JobPosting"] = relationship("JobPosting", back_populates="skills")
+    job: Mapped["JobPosting"] = relationship("JobPosting", back_populates="skills",lazy="selectin")

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import engine, get_db
 from app.models.base import Base
 from app.schemas.resume_schema import ResumeCreate
-from app.services import cv_services, resume_service,vacancy_service
+from app.services import resume_service,vacancy_service
 from contextlib import asynccontextmanager
 from pydantic import ValidationError
 from app.routers import job_seekers as job_seekers_router
@@ -17,17 +17,16 @@ from fastapi import Query
 from app.schemas.vacancy_schema import VacancyCreate
 from fastapi.middleware.cors import CORSMiddleware
 from app.ai.social_analyzer import analyze_social
-from concurrent.futures import ThreadPoolExecutor
+from  app.services.cv_services import CVService
 import asyncio
 from .users import views as users_router
 from .users.config import safe_get_current_subject
 from .users.models import User
+from typing import List
+from app.database import AsyncSessionLocal
+import logging
+logger = logging.getLogger(__name__)
 
-executor = ThreadPoolExecutor()
-
-async def run_in_thread(func, *args):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, func, *args)
 
 
 @asynccontextmanager
@@ -57,37 +56,72 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @app.post("/upload_pdf")
-async def upload_pdf(file: UploadFile = File(...), db: AsyncSession = Depends(get_db),
-                     user: User = Depends(safe_get_current_subject), vacancy_id: Optional[int] = Query(default=None)):
-    if not file.filename.endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+async def upload_pdf(
+    files: List[UploadFile] = File(...),
+    user: User = Depends(safe_get_current_subject),
+    vacancy_id: Optional[int] = Query(default=None)
+    ):
+    if vacancy_id is None:
+        raise HTTPException(status_code=400, detail="vacancy_id is required")
+    # Запуск всех задач параллельно
+    tasks = [process_file(file,vacancy_id) for file in files]
+    results = await asyncio.gather(*tasks)
+    return JSONResponse(content={"resumes": results})
 
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-    async with aiofiles.open(file_path, "wb") as out_file:
-        while chunk := await file.read(1024 * 1024):  # Читаем по 1MB
-            await out_file.write(chunk)
+async def process_file(file: UploadFile, vacancy_id:int, user: User = Depends(safe_get_current_subject)):
+    try:    
+        async with AsyncSessionLocal() as db:
+            logger.info(f"🚀 Starting background task for resume {vacancy_id}")
+            cv_services = CVService(db)
+            service = resume_service.ResumeService(db)
+            if not file.filename.endswith(".pdf"):
+                raise HTTPException(status_code=400, detail=f"File {file.filename} is not a valid PDF")
 
+            file_path = os.path.join(UPLOAD_DIR, file.filename)
 
-    # Парсинг PDF-файла (ожидается, что функция вернет dict, соответствующий ResumeCreate)
-    parsed_data = cv_services.parse_pdf(file_path)
-    if not parsed_data:
-        raise HTTPException(status_code=400, detail="Failed to parse PDF")
+            async with aiofiles.open(file_path, "wb") as out_file:
+                while chunk := await file.read(1024 * 1024):
+                    await out_file.write(chunk)
 
+            parsed_data = await cv_services.parse_pdf(file_path, vacancy_id)
+            if not parsed_data:
+                raise HTTPException(status_code=400, detail=f"Failed to parse PDF: {file.filename}")
 
-    
+            try:
+                resume_data = ResumeCreate(**parsed_data)
+            except ValidationError as e:
+                raise HTTPException(status_code=400, detail=f"Data validation error in {file.filename}: {e.errors()}")
+
+            db_resume = await service.create_resume(resume_data, vacancy_id=vacancy_id, user=user)
+            vc_description = db_resume.job_postings[0].description
+            vc_title = db_resume.job_postings[0].title
+            vc_requirements = db_resume.job_postings[0].requirements
+            logger.info(f"🚀 Starting background task for resume {vc_title}")
+            asyncio.create_task(background_task(db_resume.id,file_path,vc_description,vc_title,vc_requirements))
+            
+
+            return {
+                    "id": db_resume.id,
+                    "fullname": db_resume.fullname,
+                    "location": db_resume.location
+                }
+    except Exception as e:
+        # Логирование ошибки или дополнительные действия
+        print(f"Error in file task for resume: {e}")    
+
+async def background_task(resume_id: int, file_path: str, description: str, title: str, requirements: str, ):
     try:
-        resume_data = ResumeCreate(**parsed_data)
-    except ValidationError as e:
-        raise HTTPException(status_code=400, detail=f"Data validation error: {e.errors()}")
-    service = resume_service.ResumeService(db)
-    db_resume = await service.create_resume(resume_data, vacancy_id=vacancy_id, user=user)
-    async def background_task():
-        text = cv_services.parse_pdf_to_text(file_path)
-        social_skills = await run_in_thread(analyze_social, text)
-        await service.resume_skill_add(db_resume.id, social_skills)
-    asyncio.create_task(background_task()) 
-    return JSONResponse(content={"id": db_resume.id, "fullname": db_resume.fullname, "location": db_resume.location})
-
+        async with AsyncSessionLocal() as db:
+            logger.info(f"🚀 Starting background task for resume {resume_id}")
+            service = resume_service.ResumeService(db)
+            cv_services = CVService(db)
+            text = await cv_services.parse_pdf_to_text(file_path)
+            social_skills = await analyze_social(text,title,description,requirements)
+            await service.resume_skill_add(resume_id, social_skills)
+            await db.commit()
+    except Exception as e:
+        # Логирование ошибки или дополнительные действия
+        logger.error(f"💥 Error in background task for resume {resume_id}: {e}", exc_info=True)
 
 
 @app.post("/vacancy_post")

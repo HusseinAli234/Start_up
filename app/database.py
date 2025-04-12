@@ -1,8 +1,9 @@
+import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-
-
-# URL базы данных (используется SQLite для тестирования)
+from dotenv import load_dotenv
+load_dotenv()
+# Использование переменной окружения DATABASE_URL
 DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 # Создаем асинхронный движок

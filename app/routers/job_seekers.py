@@ -24,6 +24,8 @@ async def get_all_resumes(db: AsyncSession = Depends(get_db), user: User = Depen
             selectinload(Resume.skills),
             selectinload(Resume.educations),
             selectinload(Resume.experiences),
+            selectinload(Resume.hard_total),
+            selectinload(Resume.soft_total)
         )
     )
     resumes = result.scalars().all()
@@ -36,6 +38,10 @@ async def get_resume_by_id(resume_id: int, db: AsyncSession = Depends(get_db), u
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
     return resume
+
+# @router.post("/save_result/{resume_id}")
+# async def save_test_result(resume_id:int,db:AsyncSession = Depends(get_db)):
+
 
 
 @router.delete("/{resume_id}")

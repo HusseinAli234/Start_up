@@ -21,6 +21,8 @@ async def get_all_resumes(db: AsyncSession = Depends(get_db)):
             selectinload(Resume.skills),
             selectinload(Resume.educations),
             selectinload(Resume.experiences),
+            selectinload(Resume.hard_total),
+            selectinload(Resume.soft_total)
         )
     )
     resumes = result.scalars().all()

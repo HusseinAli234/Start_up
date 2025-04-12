@@ -22,8 +22,8 @@ import asyncio
 from typing import List
 from app.database import AsyncSessionLocal
 import logging
-logging.basicConfig()    
-logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 
 
 @asynccontextmanager
@@ -66,6 +66,7 @@ async def upload_pdf(
 async def process_file(file: UploadFile,vacancy_id:int):
     try:    
         async with AsyncSessionLocal() as db:
+            logger.info(f"🚀 Starting background task for resume {vacancy_id}")
             cv_services = CVService(db)
             service = resume_service.ResumeService(db)
             if not file.filename.endswith(".pdf"):
@@ -87,8 +88,11 @@ async def process_file(file: UploadFile,vacancy_id:int):
                 raise HTTPException(status_code=400, detail=f"Data validation error in {file.filename}: {e.errors()}")
 
             db_resume = await service.create_resume(resume_data, vacancy_id=vacancy_id)
-            
-            asyncio.create_task(background_task(db_resume.id,file_path))
+            vc_description = db_resume.job_postings[0].description
+            vc_title = db_resume.job_postings[0].title
+            vc_requirements = db_resume.job_postings[0].requirements
+            logger.info(f"🚀 Starting background task for resume {vc_title}")
+            asyncio.create_task(background_task(db_resume.id,file_path,vc_description,vc_title,vc_requirements))
             
 
             return {
@@ -100,18 +104,19 @@ async def process_file(file: UploadFile,vacancy_id:int):
         # Логирование ошибки или дополнительные действия
         print(f"Error in file task for resume: {e}")    
 
-async def background_task(resume_id: int, file_path: str):
+async def background_task(resume_id: int, file_path: str,description:str,title:str,requirements:str):
     try:
         async with AsyncSessionLocal() as db:
+            logger.info(f"🚀 Starting background task for resume {resume_id}")
             service = resume_service.ResumeService(db)
             cv_services = CVService(db)
             text = await cv_services.parse_pdf_to_text(file_path)
-            social_skills = await analyze_social(text)
+            social_skills = await analyze_social(text,title,description,requirements)
             await service.resume_skill_add(resume_id, social_skills)
             await db.commit()
     except Exception as e:
         # Логирование ошибки или дополнительные действия
-        print(f"Error in background task for resume {resume_id}: {e}")
+        logger.error(f"💥 Error in background task for resume {resume_id}: {e}", exc_info=True)
 
 
 @app.post("/vacancy_post")

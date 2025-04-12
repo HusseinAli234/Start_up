@@ -44,7 +44,9 @@ async def register(user: UserCreate, response: Response, db: AsyncSession = Depe
     await db.refresh(new_user)
     
     # Сразу после регистрации создаем токен
-    token = security.create_access_token(uid=str(new_user.id), subject={"email": new_user.email})
+    token = security.create_access_token(
+        uid=str(new_user.id), 
+        subject={"email": new_user.email})
 
     # Устанавливаем токен в cookie
     response.set_cookie(

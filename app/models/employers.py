@@ -3,7 +3,7 @@ from app.models.base import Base
 from sqlalchemy.orm import  Mapped, mapped_column, relationship
 from sqlalchemy import Integer, String, ForeignKey
 from app.models.association import resume_job_association
-from app.users.models import User
+from app.users.models.users import User
 
 
 class JobPosting(Base):
@@ -16,17 +16,17 @@ class JobPosting(Base):
     requirements: Mapped[str] = mapped_column(String,index=True)
     salary: Mapped[int] = mapped_column(Integer, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    user: Mapped["User"] = relationship("User", back_populates="user_job_postings")
+    user: Mapped["User"] = relationship("User", back_populates="user_job_postings",lazy="selectin")
 
     skills: Mapped[list["VacancySkill"]] = relationship(
         "VacancySkill", 
         back_populates="job", 
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",lazy="selectin"
     )
     resumes = relationship(
         "Resume", 
         secondary=resume_job_association, 
-        back_populates="job_postings"
+        back_populates="job_postings",lazy="selectin"
     )
 
 

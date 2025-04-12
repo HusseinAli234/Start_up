@@ -25,17 +25,17 @@ class Resume(Base):
     skills: Mapped[list["Skill"]] = relationship(
         "Skill", 
         back_populates="resume", 
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",lazy="selectin"
     )
     educations: Mapped[list["Education"]] = relationship(
         "Education", 
         back_populates="resume", 
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",lazy="selectin"
     )
     experiences: Mapped[list["Experience"]] = relationship(
         "Experience",
         back_populates="resume", 
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",lazy="selectin"
     )
     job_postings = relationship(
         "JobPosting", 
@@ -43,7 +43,7 @@ class Resume(Base):
         back_populates="resumes",lazy="selectin"
     )
    
-    user: Mapped["User"] = relationship("User", back_populates="user_resumes")
+    user: Mapped["User"] = relationship("User", back_populates="user_resumes",lazy="selectin")
 
 
 

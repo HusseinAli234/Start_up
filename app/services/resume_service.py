@@ -78,7 +78,7 @@ class ResumeService:
         return db_resume
 
 
-    async def resume_skill_add(self, resume_id: int, user: User, soft_skills: dict):
+    async def resume_skill_add(self, resume_id: int, soft_skills: dict):
         # Проверка на существование резюме
         result = await self.db.execute(select(Resume).where(Resume.id == resume_id))
         resume = result.scalar_one_or_none()

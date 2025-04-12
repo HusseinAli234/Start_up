@@ -74,17 +74,24 @@ class ResumeService:
 
         # Обновляем soft_total или создаём, если его ещё нет
         soft_total_data = soft_skills.get("soft_total")
+        if resume.soft_total:
+            temp_total = resume.soft_total.total  # Если soft_total уже существует, используем его total
+        else:
+            temp_total = 0  # Если soft_total ещё не создан, начинаем с нуля
+        if soft_total_data["total"] == 0:
+            soft_total_data["total"] = 1
         if soft_total_data:
             if resume.soft_total:
-                resume.soft_total.total = soft_total_data["total"]
+                resume.soft_total.total = temp_total + ((soft_total_data["total"] / 100) * 50)
                 resume.soft_total.justification = soft_total_data["justification"]
             else:
                 from app.models.job_seekers import SoftTotal  # импорт тут, если нет глобального
                 resume.soft_total = SoftTotal(
-                    total=soft_total_data["total"],
+                    total=temp_total + ((soft_total_data["total"] / 100) * 50),
                     justification=soft_total_data["justification"],
                     resume_id=resume_id
                 )
+
 
         # Получаем список новых soft-skills
         skills_to_add_data = soft_skills.get("skills", [])

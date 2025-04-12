@@ -292,7 +292,7 @@ async def analyze_social(pdf_info:str,title:str,description:str,requirements:str
         }
     ),
          system_instruction=[
-            types.Part.from_text(text=chosen_instruction)],
+            types.Part.from_text(text=(chosen_instruction + "IF Insufficient data provided for analysis,THEN TOTAL SOFT_SKILL EQUAL TO -1"))],
     )
 
     try:

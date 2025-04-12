@@ -3,6 +3,8 @@ from sqlalchemy import String, Integer
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -20,10 +22,10 @@ class User(Base):
     user_resumes: Mapped[list["Resume"]] = relationship(
         "Resume",
         back_populates="user",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",lazy="selectin"
     )
     user_job_postings: Mapped[list["JobPosting"]] = relationship(
         "JobPosting",
         back_populates="user",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",lazy="selectin"
     )

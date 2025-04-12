@@ -72,6 +72,7 @@ async def upload_pdf(
 async def process_file(file: UploadFile, vacancy_id:int, user: User):
     try:    
         async with AsyncSessionLocal() as db:
+            user = await db.merge(user)
             logger.info(f"🚀 Starting background task for resume {vacancy_id}")
             cv_services = CVService(db)
             service = resume_service.ResumeService(db)
@@ -113,7 +114,7 @@ async def process_file(file: UploadFile, vacancy_id:int, user: User):
             "error": str(e)
         }
 
-async def background_task(resume_id: int, file_path: str, description: str, title: str, requirements: str, ):
+async def background_task(resume_id: int, file_path: str, description: str, title: str, requirements: str ):
     try:
         async with AsyncSessionLocal() as db:
             logger.info(f"🚀 Starting background task for resume {resume_id}")

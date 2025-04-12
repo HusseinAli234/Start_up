@@ -6,6 +6,11 @@ from dotenv import load_dotenv
 import os
 from google import genai
 from google.genai import types
+import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 client = genai.Client(
@@ -199,6 +204,10 @@ def social_network_analyzer(str):
 
 def analyze_social(pdf_info:str): 
     social_info  = social_network_analyzer(pdf_info)
+    if not social_info.strip():
+        # Если нет данных для анализа — сразу возвращаем пустой результат
+        logger.warning("analyze_social: social_info пустой, пропускаем анализ")
+        return []
     model = "gemini-2.0-flash"
     contents = [
         types.Content(
@@ -255,9 +264,20 @@ def analyze_social(pdf_info:str):
     try:
         parsed_json = json.loads(json_text) 
         print(parsed_json)
-        return parsed_json[0]
     except json.JSONDecodeError as e:
-        raise ValueError(f"Ошибка декодирования JSON: {e}")
+        logger.error(f"Ошибка декодирования JSON в analyze_social: {e}; текст: {json_text!r}")
+        return []
+    
+    if not isinstance(parsed_json, list):
+        logger.error(f"analyze_social: ожидаем список, получили {type(parsed_json)}")
+        return []
+
+    if len(parsed_json) == 0:
+        logger.warning("analyze_social: модель вернула пустой список")
+        return []
+
+    # Всё ок, возвращаем первый элемент
+    return parsed_json[0]
     
 
 

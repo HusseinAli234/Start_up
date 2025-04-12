@@ -2,8 +2,9 @@
 import enum
 from sqlalchemy.orm import  Mapped, mapped_column, relationship
 from sqlalchemy import Integer, String, Float, ForeignKey, Enum as SAEnum
-from app.models import Base
+from app.models.base import Base
 from app.models.association import resume_job_association
+from app.users.models.users import User
 
 
 class TypeSkill(enum.Enum):
@@ -13,16 +14,37 @@ class TypeSkill(enum.Enum):
 
 class Resume(Base):
     __tablename__ = "resumes"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     fullname: Mapped[str] = mapped_column(String, index=True)
     location: Mapped[str] = mapped_column(String, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
     
-    skills: Mapped[list["Skill"]] = relationship("Skill", back_populates="resume", cascade="all, delete-orphan")
-    educations: Mapped[list["Education"]] = relationship("Education", back_populates="resume", cascade="all, delete-orphan")
-    experiences: Mapped[list["Experience"]] = relationship("Experience", back_populates="resume", cascade="all, delete-orphan")
-    job_postings = relationship(
-        "JobPosting", secondary=resume_job_association, back_populates="resumes"
+    skills: Mapped[list["Skill"]] = relationship(
+        "Skill",
+        back_populates="resume",
+        cascade="all, delete-orphan"
     )
+    educations: Mapped[list["Education"]] = relationship(
+        "Education",
+        back_populates="resume",
+        cascade="all, delete-orphan"
+    )
+    experiences: Mapped[list["Experience"]] = relationship(
+        "Experience",
+        back_populates="resume",
+        cascade="all, delete-orphan"
+    )
+    
+
+    job_postings = relationship(
+        "JobPosting",
+        secondary=resume_job_association,
+        back_populates="resumes"
+    )
+   
+    user: Mapped["User"] = relationship("User", back_populates="user_resumes")
+
 
 
 class Education(Base):

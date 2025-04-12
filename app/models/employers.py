@@ -1,24 +1,9 @@
 # models.py
-from app.models import Base
+from app.models.base import Base
 from sqlalchemy.orm import  Mapped, mapped_column, relationship
 from sqlalchemy import Integer, String, ForeignKey
 from app.models.association import resume_job_association
-
-
-
-class EmployerProfile(Base):
-    __tablename__ = "employers"
-    
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    company_name: Mapped[str] = mapped_column(String, index=True)
-    location: Mapped[str] = mapped_column(String, index=True)
-    industry: Mapped[str] = mapped_column(String, index=True)
-    description: Mapped[str] = mapped_column(String, index=True)
-
-    job_postings: Mapped[list["JobPosting"]] = relationship(
-        "JobPosting", back_populates="employer", cascade="all, delete-orphan"
-    )
-
+from app.users.models import User
 
 
 class JobPosting(Base):
@@ -29,15 +14,20 @@ class JobPosting(Base):
     description: Mapped[str] = mapped_column(String, index=True)
     location: Mapped[str] = mapped_column(String, index=True)
     salary: Mapped[int] = mapped_column(Integer, index=True)
-    employer_id: Mapped[int] = mapped_column(ForeignKey("employers.id"),nullable=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user: Mapped["User"] = relationship("User", back_populates="user_job_postings")
 
-    employer: Mapped["EmployerProfile"] = relationship("EmployerProfile", back_populates="job_postings")
     skills: Mapped[list["VacancySkill"]] = relationship(
-        "VacancySkill", back_populates="job", cascade="all, delete-orphan"
+        "VacancySkill",
+        back_populates="job",
+        cascade="all, delete-orphan"
     )
     resumes = relationship(
-        "Resume", secondary=resume_job_association, back_populates="job_postings"
+        "Resume",
+        secondary=resume_job_association,
+        back_populates="job_postings"
     )
+
 
 
 class VacancySkill(Base):

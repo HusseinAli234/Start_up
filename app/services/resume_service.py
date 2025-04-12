@@ -7,6 +7,8 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import delete
 from app.models.employers import JobPosting
 from fastapi import FastAPI, HTTPException
+from app.users.models import User
+from fastapi import status
 
 
 app = FastAPI()
@@ -24,7 +26,7 @@ class ResumeService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_resume(self, resume_data: ResumeCreate, vacancy_id: int | None = None) -> Resume:
+    async def create_resume(self, resume_data: ResumeCreate, user: User, vacancy_id: int | None = None) -> Resume:
         db_resume = Resume(
             fullname=resume_data.fullname,
             location=resume_data.location,
@@ -44,7 +46,8 @@ class ResumeService:
                     type=TypeSkill(skill.type)
                 )
                 for skill in resume_data.skills
-            ]
+            ],
+            user_id = user.id
         )
 
         if vacancy_id:
@@ -52,6 +55,9 @@ class ResumeService:
             job = await self.db.get(JobPosting, vacancy_id)
             if not job:
                 raise HTTPException(status_code=404, detail="Vacancy not found")
+            if job.user_id != user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="You don't have permission to attach this vacancy")
             db_resume.job_postings.append(job)
 
         self.db.add(db_resume)
@@ -82,10 +88,11 @@ class ResumeService:
         # Добавление в сессию
         self.db.add_all(skills)
         await self.db.commit()
-    async def get_resume(self, resume_id: int) -> Resume:
-    # Используем selectinload для предзагрузки связанных объектов
+
+    async def get_resume(self, resume_id: int, user: User) -> Resume:
         result = await self.db.execute(
             select(Resume)
+            .filter_by(id=resume_id, user_id=user.id)
             .options(
                 selectinload(Resume.experiences),
                 selectinload(Resume.educations),
@@ -96,8 +103,8 @@ class ResumeService:
         resume = result.scalars().first()
         return resume
 
-    async def delete_resume(self, resume_id: int) -> Resume:
-        resume = await self.get_resume(resume_id)
+    async def delete_resume(self, resume_id: int, user: User) -> Resume:
+        resume = await self.get_resume(resume_id, user)
         if not resume:
             return None
         await self.db.delete(resume)

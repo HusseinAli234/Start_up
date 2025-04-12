@@ -4,7 +4,7 @@ from statistics import mean
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-
+from app.users.models import User
 from app.models.employers import VacancySkill, JobPosting  
 from app.schemas.vacancy_schema import VacancyCreate
 from app.models.job_seekers import Resume
@@ -37,12 +37,13 @@ class JobPostingService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_job_posting(self, job_data: VacancyCreate) -> JobPosting:
+    async def create_job_posting(self, job_data: VacancyCreate, user: User) -> JobPosting:
         db_job = JobPosting(
             title=job_data.title,
             location=job_data.location,
             description=job_data.description,
             salary=job_data.salary,
+            user_id=user.id,
             skills=[
                 VacancySkill(
                     title=skill.title,
@@ -55,20 +56,21 @@ class JobPostingService:
         await self.db.refresh(db_job)
         return db_job
 
-    async def get_job_posting(self, job_id: int) -> JobPosting:
+    async def get_job_posting(self, job_id: int, user: User) -> JobPosting:
         result = await self.db.execute(
             select(JobPosting)
+            .filter_by(id=job_id, user_id=user.id)
             .options(
                 selectinload(JobPosting.skills),
                 selectinload(JobPosting.resumes)
             )
-            .where(JobPosting.id == job_id)
         )
         return result.scalars().first()
         
-    async def sort_by_hard(self, job_id: int):
+    async def sort_by_hard(self, job_id: int, user: User = None):
         result = await self.db.execute(
             select(JobPosting)
+            .filter_by(id=job_id, user_id=user.id)
             .options(
                 selectinload(JobPosting.skills),
                 selectinload(JobPosting.resumes).selectinload(Resume.skills)
@@ -99,9 +101,12 @@ class JobPostingService:
                     v_skill_norm = normalize(v_skill.title)
                     matches.append((v_skill.title, is_match))
                     if is_match:
+                        # Делим значение на 10, чтобы перевести оценку с 100-бальной шкалы на 10-бальную
                         matched_levels.append(r_skill.level)
                 print(f"Навык резюме: '{r_skill.title}' (нормализовано: '{r_skill_norm}') -> Совпадения: {matches}")
             avg_score = mean(matched_levels) if matched_levels else 0
+            print(matched_levels)
+            
             print(f"Средний балл для {resume.fullname}: {avg_score}")
             resume_scores.append((resume, avg_score))
 
@@ -113,10 +118,10 @@ class JobPostingService:
 
         return [{"resume": r.fullname, "avg_skill_score": score} for r, score in sorted_resumes]
     
-    async def delete_job_posting(self, job_id: int) -> JobPosting:
-        job = await self.get_job_posting(job_id)
+    async def delete_job_posting(self, job_id: int, user: User) -> bool:
+        job = await self.get_job_posting(job_id, user)
         if not job:
-            return None
+            return False
         await self.db.delete(job)
         await self.db.commit()
-        return job
+        return True

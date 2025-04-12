@@ -12,6 +12,7 @@ config = AuthXConfig()
 config.JWT_SECRET_KEY = "SECRET_KEY"
 config.JWT_ACCESS_COOKIE_NAME = "my_access_token"
 config.JWT_TOKEN_LOCATION = ["cookies"]
+config.JWT_ACCESS_TOKEN_EXPIRES = 600 # 10 минут
 security = AuthX(config, model=User)
 
 

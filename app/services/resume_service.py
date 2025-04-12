@@ -23,56 +23,62 @@ class ResumeService:
             fullname=resume_data.fullname,
             location=resume_data.location,
         )
+
         if resume_data.hard_total:
             db_hard_total = HardTotal(
-            total=resume_data.hard_total.total,
-            justification=resume_data.hard_total.justification,
-            resume=db_resume
-        )
-        db_resume.hard_total = db_hard_total
-       
+                total=resume_data.hard_total.total,
+                justification=resume_data.hard_total.justification,
+                resume=db_resume
+            )
+            db_resume.hard_total = db_hard_total
 
         db_resume.experiences = [
-                Experience(name=exp.name, description=exp.description, resume=db_resume)
-                for exp in resume_data.experience
-            ]
+            Experience(name=exp.name, description=exp.description, resume=db_resume)
+            for exp in resume_data.experience
+        ]
         db_resume.educations = [
-                Education(name=edu.name, description=edu.description, resume=db_resume)
-                for edu in resume_data.education
-            ]
+            Education(name=edu.name, description=edu.description, resume=db_resume)
+            for edu in resume_data.education
+        ]
         db_resume.skills = [
-                Skill(
-                    title=skill.title,
-                    level=skill.level,
-                    justification=skill.justification,
-                    type=TypeSkill(skill.type),
-                    resume=db_resume
-                )
-                for skill in resume_data.skills
-            ],
-        db_resume.user_id = user.id
+            Skill(
+                title=skill.title,
+                level=skill.level,
+                justification=skill.justification,
+                type=TypeSkill(skill.type),
+                resume=db_resume
+            )
+            for skill in resume_data.skills
+        ]
+        
+        # Устанавливаем связь с пользователем напрямую
+        db_resume.user = user
+
         with self.db.no_autoflush:
-            self.db.add(db_resume)   
-            self.db.add(db_resume.hard_total) 
+            self.db.add(db_resume)
+            if resume_data.hard_total:
+                self.db.add(db_resume.hard_total)
             self.db.add_all(db_resume.experiences)
             self.db.add_all(db_resume.educations)
             self.db.add_all(db_resume.skills)
+            # Удаляем строку self.db.add(db_resume.user)
+
         if vacancy_id:
-            # Если задан id вакансии, пытаемся получить вакансию
             job = await self.db.get(JobPosting, vacancy_id)
             if not job:
-                raise HTTPException(status_code=404, detail="Vacancy not found")
+                raise HTTPException(status_code=404, detail="Вакансия не найдена")
             if job.user_id != user.id:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                    detail="You don't have permission to attach this vacancy")
+                                    detail="У вас нет прав для прикрепления этой вакансии")
             db_resume.job_postings.append(job)
 
         self.db.add(db_resume)
-        await self.db.commit()  # асинхронный commit
-        await self.db.refresh(db_resume)  # обновляем объект после сохранения
+        await self.db.commit()
+        await self.db.refresh(db_resume)
         return db_resume
 
-    async def resume_skill_add(self, resume_id: int, soft_skills: dict):
+
+    async def resume_skill_add(self, resume_id: int, user: User, soft_skills: dict):
         # Проверка на существование резюме
         result = await self.db.execute(select(Resume).where(Resume.id == resume_id))
         resume = result.scalar_one_or_none()
@@ -111,6 +117,8 @@ class ResumeService:
         # Добавляем в сессию
         self.db.add_all(skills)
         await self.db.commit()
+
+        
     async def get_resume(self, resume_id: int, user: User) -> Resume:
     # Используем selectinload для предзагрузки связанных объектов
         result = await self.db.execute(

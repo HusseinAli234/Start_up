@@ -25,6 +25,7 @@ from .users.models import User
 from typing import List
 from app.database import AsyncSessionLocal
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,11 +65,11 @@ async def upload_pdf(
     if vacancy_id is None:
         raise HTTPException(status_code=400, detail="vacancy_id is required")
     # Запуск всех задач параллельно
-    tasks = [process_file(file,vacancy_id) for file in files]
+    tasks = [process_file(file, vacancy_id, user) for file in files]
     results = await asyncio.gather(*tasks)
     return JSONResponse(content={"resumes": results})
 
-async def process_file(file: UploadFile, vacancy_id:int, user: User = Depends(safe_get_current_subject)):
+async def process_file(file: UploadFile, vacancy_id:int, user: User):
     try:    
         async with AsyncSessionLocal() as db:
             logger.info(f"🚀 Starting background task for resume {vacancy_id}")
@@ -106,8 +107,11 @@ async def process_file(file: UploadFile, vacancy_id:int, user: User = Depends(sa
                     "location": db_resume.location
                 }
     except Exception as e:
-        # Логирование ошибки или дополнительные действия
-        print(f"Error in file task for resume: {e}")    
+        logger.error(f"Error in file task for resume: {e}", exc_info=True)
+        return {
+            "filename": file.filename,
+            "error": str(e)
+        }
 
 async def background_task(resume_id: int, file_path: str, description: str, title: str, requirements: str, ):
     try:

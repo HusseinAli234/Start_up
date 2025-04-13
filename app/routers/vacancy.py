@@ -49,12 +49,12 @@ async def delete_vacancy(vacancy_id: int, db: AsyncSession = Depends(get_db), us
     return {"message": "Vacancy deleted successfully"}
 
 
-@router.get("/sort/{vacancy_id}",response_model=List[SortResumesResponse])
-async def sort_resumes(vacancy_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
-    service = JobPostingService(db)
-    resumes = await service.sort_by_hard(vacancy_id, user)
-    if not resumes:
-        raise HTTPException(status_code=404, detail="Resumes didn't upload")
-    return resumes
+# @router.get("/sort/{vacancy_id}",response_model=List[SortResumesResponse])
+# async def sort_resumes(vacancy_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+#     service = JobPostingService(db)
+#     resumes = await service.sort_by_hard(vacancy_id, user)
+#     if not resumes:
+#         raise HTTPException(status_code=404, detail="Resumes didn't upload")
+#     return resumes
 
 

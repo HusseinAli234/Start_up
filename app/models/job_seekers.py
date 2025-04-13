@@ -10,6 +10,7 @@ from app.users.models.users import User
 class TypeSkill(enum.Enum):
     SOFT = "SOFT"
     HARD = "HARD"
+    TEST = "TEST"
 
 
 class Resume(Base):
@@ -20,6 +21,8 @@ class Resume(Base):
     location: Mapped[str] = mapped_column(String, index=True)
     hard_total: Mapped["HardTotal"] = relationship("HardTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     soft_total: Mapped["SoftTotal"] = relationship("SoftTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    test_total: Mapped["TestTotal"] = relationship("TestTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
     
     skills: Mapped[list["Skill"]] = relationship(
@@ -81,6 +84,12 @@ class SoftTotal(Base):
     resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"), unique=True)
     resume: Mapped["Resume"] = relationship("Resume", back_populates="soft_total", lazy="selectin")
 
+class TestTotal(Base):
+    __tablename__ = "test_skills"
+    id: Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True)
+    total: Mapped[float] = mapped_column(Float,index=True)
+    resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"), unique=True)
+    resume: Mapped["Resume"] = relationship("Resume", back_populates="test_total", lazy="selectin")
 
 
 class Skill(Base):
@@ -93,3 +102,26 @@ class Skill(Base):
     type: Mapped[TypeSkill] = mapped_column(SAEnum(TypeSkill), nullable=False, default=TypeSkill.HARD)
     
     resume: Mapped["Resume"] = relationship("Resume", back_populates="skills",lazy="selectin")
+class SocialTest(Base):
+    __tablename__ = "social_test"
+    id: Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True)
+    title: Mapped[str] = mapped_column(String,index=True)
+    proffesion:Mapped[str] = mapped_column(String,index=True,nullable=True)
+    questions: Mapped[list["TestQuestion"]] = relationship(
+        "TestQuestion",
+        back_populates="social_test", 
+        cascade="all, delete-orphan",lazy="selectin"
+    )
+    user: Mapped["User"] = relationship("User", back_populates="user_test",lazy="selectin")
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
+
+
+
+class TestQuestion(Base):
+    __tablename__ = "test_question"
+    id: Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True)
+    question: Mapped[str] = mapped_column(String,index=True)
+    mark:Mapped[int] = mapped_column(Integer,index=True)
+    test_id:Mapped[int] = mapped_column(Integer,ForeignKey("social_test.id"))
+    social_test: Mapped["SocialTest"] = relationship("SocialTest",back_populates="questions",lazy="selectin") 
+       

@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import engine, get_db
 from app.models.base import Base
 from app.schemas.resume_schema import ResumeCreate
-from app.services import resume_service,vacancy_service
+from app.schemas.test_schema import CreateTest
+from app.services import resume_service,vacancy_service,test_services
 from contextlib import asynccontextmanager
 from pydantic import ValidationError
 from app.routers import job_seekers as job_seekers_router
@@ -20,12 +21,14 @@ from app.ai.social_analyzer import analyze_social
 from  app.services.cv_services import CVService
 import asyncio
 from .users import views as users_router
+from app.routers import test as test_router
 from .users.config import safe_get_current_subject
 from .users.models import User
 from typing import List
 from app.database import AsyncSessionLocal
 import logging
-
+from app.schemas.test_schema import ResultOfTest
+from app.ai.sms_sendler import emailProccess
 logger = logging.getLogger(__name__)
 
 
@@ -42,6 +45,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(job_seekers_router.router)
 app.include_router(vacancy_router.router)
 app.include_router(users_router.router)
+app.include_router(test_router.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -121,7 +125,7 @@ async def background_task(resume_id: int, file_path: str, description: str, titl
             service = resume_service.ResumeService(db)
             cv_services = CVService(db)
             text = await cv_services.parse_pdf_to_text(file_path)
-            social_skills = await analyze_social(text,title,description,requirements)
+            social_skills = await analyze_social(text,title,description,requirements,resume_id)
             await service.resume_skill_add(resume_id, social_skills)
             await db.commit()
     except Exception as e:
@@ -134,3 +138,15 @@ async def upload_vacancy(vacancy: VacancyCreate, db: AsyncSession = Depends(get_
     service = vacancy_service.JobPostingService(db)
     db_vacancy = await service.create_job_posting(vacancy, user)
     return JSONResponse(content={"id": db_vacancy.id, "title": db_vacancy.title, "location": db_vacancy.location})
+
+@app.post("/test_post")
+async def upload_test(test: CreateTest, db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+    service = test_services.TestService(db)
+    db_test = await service.add_test(test, user)
+    return JSONResponse(content={"id": db_test.id, "title": db_test.title, "proffesion": db_test.proffesion})
+
+@app.post("/result")
+async def resultOfTest(result:ResultOfTest,db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+    service = resume_service.ResumeService(db)
+    db_test = await service.test_skill_add(result.resume_id,result.sub_tests)
+    return JSONResponse(content={"result": "Success"})

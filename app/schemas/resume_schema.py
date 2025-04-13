@@ -29,6 +29,11 @@ class HardTotal(BaseModel):
     class Config:
         orm_mode = True
 
+class TestTotal(BaseModel):
+    total:float
+    class Config:
+        orm_mode = True
+
 class SoftTotal(BaseModel):
     total:int
     justification:str
@@ -59,6 +64,7 @@ class ResumeResponse(BaseModel):
     location: str
     hard_total: Optional[HardTotal]
     soft_total: Optional[SoftTotal]
+    test_total: Optional[TestTotal]
     skills: List[SkillSchema] 
     educations: List[EducationSchema]  
     experiences: List[ExperienceSchema] 

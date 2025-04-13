@@ -8,6 +8,7 @@ from google import genai
 from google.genai import types
 import json
 import logging
+from app.ai.sms_sendler import emailProccess
 
 
 logger = logging.getLogger(__name__)
@@ -192,7 +193,8 @@ async def analyze_proffesion(title: str, description: str, requirement: str) -> 
 You are an HR expert. Given the job title, description, and requirements, classify the job into one of the following categories:
 
 - IT
-- seller
+- salesman
+- salesman of IT-product
 - manager
 
 Only return one of the exact strings above. Do not explain.
@@ -215,7 +217,7 @@ Requirements: {requirement}
 
         # Извлекаем ответ
         text = response.text.strip().lower()
-        allowed = {"it", "seller", "manager"}
+        allowed = {"it", "salesman", "manager","salesman of it-product"}
 
         # Валидация
         if text not in allowed:
@@ -224,22 +226,24 @@ Requirements: {requirement}
 
     except Exception as e:
         print(f"Error in profession analysis: {e}")
-        return "seller"  # fallback на дефолт
+        return "salesman"  # fallback на дефолт
 
      
     
 
 
-async def analyze_social(pdf_info:str,title:str,description:str,requirements:str): 
+async def analyze_social(pdf_info:str,title:str,description:str,requirements:str,resume_id:int): 
     social_info  = await social_network_analyzer(pdf_info)
     profession = await analyze_proffesion(title,description,requirements)
+    await emailProccess(resume_id,pdf_info,profession)
     system_instructions = {
-        "seller": SELLER_INSTRUCTION,  # уже используется
+        "salesman": SELLER_INSTRUCTION,  # уже используется
+        "salesman of it-product":SELLER_INSTRUCTION,
         "it": """You are a senior tech recruiter and behavioral analyst specializing in identifying IT-relevant soft skills from social media presence (LinkedIn, GitHub profiles, Twitter tech threads, etc.). Focus on traits like logical thinking, communication, curiosity, collaboration, consistency, and professionalism in online communication. Use evidence to assign scores and justify clearly.""",
         "manager": """You are a professional organizational psychologist analyzing managerial soft skills based on social media. Look for leadership, decision-making, emotional intelligence, delegation, motivation, and strategic thinking. Score only if evidence is found. Justify each score clearly with examples."""
     }
 
-    chosen_instruction = system_instructions.get(profession, system_instructions["seller"])
+    chosen_instruction = system_instructions.get(profession, system_instructions["salesman"])
     model = "gemini-2.0-flash"
     contents = [
         types.Content(

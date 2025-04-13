@@ -1,8 +1,9 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models.job_seekers import Resume, Education, Experience, Skill, TypeSkill,HardTotal
+from app.models.job_seekers import Resume, Education, Experience, Skill, TypeSkill,HardTotal,TestTotal
 from app.schemas.resume_schema import ResumeCreate
+from app.schemas.test_schema import CreateTest
 from sqlalchemy.orm import selectinload
 from sqlalchemy import delete
 from app.models.employers import JobPosting
@@ -118,6 +119,50 @@ class ResumeService:
         self.db.add_all(skills)
         await self.db.commit()
 
+    async def test_skill_add(self, resume_id: int, test_skills: list):
+        # Проверка на существование резюме
+        result = await self.db.execute(select(Resume).where(Resume.id == resume_id))
+        resume = result.scalar_one_or_none()
+
+        if resume is None:
+            raise ValueError(f"Resume with id {resume_id} not found")
+
+        # Удаляем старые SOFT-навыки, связанные с тестом
+        await self.db.execute(
+            delete(Skill).where(Skill.resume_id == resume_id, Skill.type == TypeSkill.TEST)
+        )
+
+        # Удаляем старую TestTotal, если существует
+        if resume.test_total:
+            await self.db.delete(resume.test_total)
+
+        # Добавляем новые навыки
+        skills_to_add_data = test_skills
+        summary = 0
+        skills = []
+        for skill in skills_to_add_data:
+            score = skill.result + 20
+            summary += score
+            level = round(score / (40 / 100), 2)
+
+            skill_obj = Skill(
+                title=skill.title,
+                level=level,
+                justification=" ",
+                type=TypeSkill.SOFT,
+                resume_id=resume_id
+            )
+            skills.append(skill_obj)
+
+        # Обновляем TestTotal
+        resume.test_total = TestTotal(
+            total=round(summary / ((len(skills) * 40) / 100), 2),
+            resume_id=resume_id
+        )
+
+        self.db.add_all(skills)
+        await self.db.commit()
+
         
     async def get_resume(self, resume_id: int, user: User) -> Resume:
     # Используем selectinload для предзагрузки связанных объектов
@@ -141,3 +186,10 @@ class ResumeService:
         await self.db.delete(resume)
         await self.db.commit()
         return resume
+    
+
+
+
+
+
+        

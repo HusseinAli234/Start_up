@@ -29,3 +29,8 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",lazy="selectin"
     )
+    user_test: Mapped[list["SocialTest"]] = relationship(
+        "SocialTest",
+        back_populates="user",
+        cascade="all, delete-orphan",lazy="selectin"
+    )

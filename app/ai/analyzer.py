@@ -126,7 +126,7 @@ async def analyze_resume(user_prompt: str, skills: List[SkillSchema], requiremen
         ValueError: Если ответ ИИ не может быть декодирован как JSON или произошла ошибка API.
     """
     # Вы можете выбрать модель 'gemini-1.5-pro-latest' для лучших результатов, если Flash не справляется
-    model_name = "gemini-2.0-flash" # Используем flash как в вашем коде
+    model_name = "gemini-2.0-flash" # Используем flash
 
     # 1. Подготовка входных данных для ИИ
     required_skill_titles = [skill['title'] if isinstance(skill, dict) else skill.title for skill in skills]

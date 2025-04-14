@@ -154,7 +154,7 @@ async def upload_test(test: CreateTest, db: AsyncSession = Depends(get_db), user
     return JSONResponse(content={"id": db_test.id, "title": db_test.title, "proffesion": db_test.proffesion})
 
 @app.post("/result")
-async def resultOfTest(result:ResultOfTest,db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+async def resultOfTest(result:ResultOfTest,db: AsyncSession = Depends(get_db)):
     service = resume_service.ResumeService(db)
     db_test = await service.test_skill_add(result.resume_id,result.sub_tests)
     return JSONResponse(content={"result": "Success"})

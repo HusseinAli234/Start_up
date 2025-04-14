@@ -171,7 +171,7 @@ async def social_network_analyzer(text_to_extract):
         "twitter": "gd_lwxmeb2u1cniijd7t4",
     }
 
-    BRIGHTDATA_API_KEY = "b8ca1069f855a70d33248d585a12a2f7443f585bf840ad45a97605b5bf1f72d4"
+    BRIGHTDATA_API_KEY = "1efa3c19a262d99ce8c4f8c5f838eca181186738e4dc4b1289ba61b1da87cfa8"
     S3_BUCKET_NAME = "start_up"
 
     extracted_links = await extract_social_media_links_json(text_to_extract)

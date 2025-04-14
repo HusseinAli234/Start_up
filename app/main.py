@@ -47,13 +47,13 @@ app.include_router(vacancy_router.router)
 app.include_router(users_router.router)
 app.include_router(test_router.router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Разрешает все домены (замените на список доменов для ограничения)
-    allow_credentials=True,
-    allow_methods=["*"],  # Разрешает все методы (GET, POST, PUT и т. д.)
-    allow_headers=["*"],  # Разрешает все заголовки
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],  # Разрешает все домены (замените на список доменов для ограничения)
+#     allow_credentials=True,
+#     allow_methods=["*"],  # Разрешает все методы (GET, POST, PUT и т. д.)
+#     allow_headers=["*"],  # Разрешает все заголовки
+# )
 
 
 UPLOAD_DIR = "back_media/"

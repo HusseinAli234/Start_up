@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from app.models.employers import JobPosting
 from app.schemas.vacancy_schema import SkillSchema
-from app.ai.analyzer import analyze_resume
+from app.ai.analyzer import analyze_resume,analyze_resume_chatgpt
 
 
 class CVService:

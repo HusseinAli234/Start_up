@@ -8,8 +8,6 @@ from google import genai
 from google.genai import types
 import json
 import logging
-from app.ai.sms_sendler import emailProccess
-
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -235,7 +233,6 @@ Requirements: {requirement}
 async def analyze_social(pdf_info:str,title:str,description:str,requirements:str,resume_id:int): 
     social_info  = await social_network_analyzer(pdf_info)
     profession = await analyze_proffesion(title,description,requirements)
-    await emailProccess(resume_id,pdf_info,profession)
     system_instructions = {
         "salesman": SELLER_INSTRUCTION,  # уже используется
         "salesman of it-product":SELLER_INSTRUCTION,

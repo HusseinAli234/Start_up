@@ -6,8 +6,9 @@ from google.genai import types
 import json
 from app.schemas.vacancy_schema import SkillSchema
 from typing import List, TypedDict # Используем TypedDict для SkillSchema, если не импортирована
-
+import openai
 load_dotenv()
+client_GPT = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # --- Клиент GenAI ---
 try:
@@ -18,6 +19,95 @@ except Exception as e:
     print(f"Ошибка инициализации genai.Client: {e}")
     exit()
 
+async def analyze_resume_chatgpt(user_prompt: str, skills: List[SkillSchema], requirements: str):
+    required_skill_titles = [skill['title'] if isinstance(skill, dict) else skill.title for skill in skills]
+    skills_list_str = ", ".join(required_skill_titles)
+
+    system_prompt = """BE ONE OF THE MOST STRICT RESUME ANALYZER IN THE WORLD ,You are an expert resume analyzer comparing a candidate against a specific job vacancy. Your tasks are:
+
+0. **Determine Expected Level (Seniority) from Job Requirements**
+   - Carefully read the 'General Job Requirements' to identify the expected position level (e.g., "Junior", "Middle", "Senior", "Lead").
+   - Apply this level as the evaluation context: adjust expectations for depth of experience, independence, leadership, and scope of skills accordingly.
+   - This context applies regardless of profession — software developer, designer, marketer, accountant, etc.
+
+1. **Skill Evaluation**
+   - Focus *only* on skills listed in 'Required Skills for Evaluation'.
+   - For each skill found in the resume:
+     * Assign a level (0–100) based on **explicit evidence** in the resume.
+     * Calibrate score according to expected job level:
+       - For a **Senior** role, assign high scores (90+) only if resume shows leadership, complex projects, or deep responsibility.
+       - For a **Junior** role, lower thresholds may be acceptable.
+     * Be strict. Vague or short mentions should not be scored highly.
+     * Provide a concise 'justification' referencing the resume.
+     * Mark all with type "HARD".
+   - Omit any required skills not found in the resume.
+
+   **Scoring Guide (universal):**
+     - 90–100: Expert-level performance in context of job level (e.g. leading initiatives, high independence, domain mastery).
+     - 60–89: Solid experience; clear usage in contextually relevant work.
+     - 35–59: Familiar or some exposure; not deep or mature usage.
+     - 1–34: Mentioned, but little/no substance.
+     - 0: Not found.
+
+2. **Hard Skills Aggregate Score ('hard_total')**
+   - Provide 'hard_total' score (0–100) reflecting:
+     * Skill match (quantity and quality of required skills found).
+     * Proficiency levels.
+     * Alignment with expected seniority and responsibilities from job description.
+   - Provide a short 'justification' explaining your reasoning.
+   - Be strict: if the candidate applies to a Senior role but only shows Junior-level evidence (e.g., internships, no leadership, limited autonomy), hard_total should not exceed 55.
+    * Conversely, highlight strong alignment if present.
+    adjusted_score = raw_score × level_alignment_multiplier
+    level_alignment_multiplier:
+    - 0.9 → full match
+    - 0.6 → slightly below
+    - 0.3 → mismatch (e.g. junior applying to senior)
+
+3. **Data Extraction**
+   - Extract 'fullname' and 'location' (fallback to "Not Found").
+   - Summarize key experiences and relevant responsibilities under 'experience'.
+   - Extract available 'education' details.
+
+4. **Output Format**
+   - Return a **single JSON object** strictly matching the given schema.
+   - All content must be in English.
+   - Do **not** include any extra explanations — return only the JSON.
+Output must be a valid JSON object with the following fields:
+- fullname: string
+- location: string
+- hard_total: { total: int, justification: string }
+- experience: [{ name: string, description: string }]
+- education: [{ name: string, description: string }]
+- skills: [{ title: string, level: int, justification: string, type: "HARD" }]
+Don't include any explanation or intro text. Just return the JSON.
+"""
+
+    user_input = f"""
+Resume Text:
+{user_prompt}
+
+Required Skills for Evaluation:
+{skills_list_str}
+
+General Job Requirements:
+{requirements}
+"""
+
+    try:
+        response = await client_GPT.chat.completions.create(
+            model="gpt-4o",  # можно и gpt-3.5-turbo, если бюджет важен
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input},
+            ],
+            temperature=0.3,
+            response_format={ "type": "json_object" }
+        )
+        raw_json = response.choices[0].message.content
+        return json.loads(raw_json)
+
+    except Exception as e:
+        raise ValueError(f"ChatGPT API error: {type(e).__name__}: {e}")
 
 async def analyze_resume(user_prompt: str, skills: List[SkillSchema], requirements: str):
     """
@@ -61,27 +151,55 @@ Instruction: Analyze the 'Resume Text' based *only* on the 'Required Skills for 
 """
 
     # 2. Обновленная системная инструкция
-    system_instruction_text = f"""You are an expert resume analyzer comparing a candidate against specific job criteria. Your tasks are:
-1.  Parse the provided 'Resume Text' (within the combined prompt) into the specified JSON format.
-2.  **Skill Evaluation:**
-    * Focus *exclusively* on the skills listed in 'Required Skills for Evaluation'. Do NOT evaluate skills not on this list.
-    * For each skill from the 'Required Skills for Evaluation' list *found* in the resume, assign a 'level' score from 0 to 100 based *only* on resume evidence.
-    * **Scoring Guide (0-100):** 90+ (Expert/Senior, strong demonstrated experience), 60-89 (Proficient/Middle, clear application shown), 35-59 (Familiar/Junior, some experience or mention), 1-34 (Basic Awareness, minimal mention), 0 (Not Found in resume). Be strict: prefer lower scores if evidence is weak.
-    * Provide a brief 'justification' for each individual skill's score, citing resume evidence.
-    * Mark these evaluated skills with type 'HARD'. If a required skill is not found, do not include it in the output 'skills' list.
-3.  **Hard Skills Aggregate Score ('hard_total'):**
-    * Calculate a 'hard_total' score object representing the candidate's match *specifically based on the required hard skills listed*.
-    * Inside 'hard_total', provide a 'total' score from 0 to 100.
-    * This aggregate 'total' score should primarily consider:
-        * How many of the 'Required Skills for Evaluation' were found in the resume.
-        * The proficiency ('level') achieved for those found skills.
-    * Do *not* heavily weigh general requirements (like years of experience, overall education unless directly proving a skill) for *this specific* 'hard_total' score; focus solely on the evidence for the required hard skills.
-    * Inside 'hard_total', provide a 'justification' string briefly explaining *why this aggregate hard skill score* was given (e.g., "Strong proficiency in Python/Django, basic Docker knowledge, missing AWS, results in score X").
-4.  **Data Extraction:**
-    * Extract 'fullname' and 'location' if available. If missing, use appropriate placeholders like "Not Found".
-    * Summarize 'experience' entries concisely, focusing on key responsibilities/achievements relevant to the requirements.
-    * Extract 'education' details as found.
-5.  **Output:** Generate a single JSON object adhering strictly to the schema. Ensure all text in the JSON is in English. Do not add any explanatory text before or after the JSON object.
+    system_instruction_text = f"""BE ONE OF THE MOST STRICT RESUME ANALYZER IN THE WORLD ,You are an expert resume analyzer comparing a candidate against a specific job vacancy. Your tasks are:
+
+0. **Determine Expected Level (Seniority) from Job Requirements**
+   - Carefully read the 'General Job Requirements' to identify the expected position level (e.g., "Junior", "Middle", "Senior", "Lead").
+   - Apply this level as the evaluation context: adjust expectations for depth of experience, independence, leadership, and scope of skills accordingly.
+   - This context applies regardless of profession — software developer, designer, marketer, accountant, etc.
+
+1. **Skill Evaluation**
+   - Focus *only* on skills listed in 'Required Skills for Evaluation'.
+   - For each skill found in the resume:
+     * Assign a level (0–100) based on **explicit evidence** in the resume.
+     * Calibrate score according to expected job level:
+       - For a **Senior** role, assign high scores (90+) only if resume shows leadership, complex projects, or deep responsibility.
+       - For a **Junior** role, lower thresholds may be acceptable.
+     * Be strict. Vague or short mentions should not be scored highly.
+     * Provide a concise 'justification' referencing the resume.
+     * Mark all with type "HARD".
+   - Omit any required skills not found in the resume.
+
+   **Scoring Guide (universal):**
+     - 90–100: Expert-level performance in context of job level (e.g. leading initiatives, high independence, domain mastery).
+     - 60–89: Solid experience; clear usage in contextually relevant work.
+     - 35–59: Familiar or some exposure; not deep or mature usage.
+     - 1–34: Mentioned, but little/no substance.
+     - 0: Not found.
+
+2. **Hard Skills Aggregate Score ('hard_total')**
+   - Provide 'hard_total' score (0–100) reflecting:
+     * Skill match (quantity and quality of required skills found).
+     * Proficiency levels.
+     * Alignment with expected seniority and responsibilities from job description.
+   - Provide a short 'justification' explaining your reasoning.
+   - Be strict: if the candidate applies to a Senior role but only shows Junior-level evidence (e.g., internships, no leadership, limited autonomy), hard_total should not exceed 55.
+    * Conversely, highlight strong alignment if present.
+    adjusted_score = raw_score × level_alignment_multiplier
+    level_alignment_multiplier:
+    - 0.9 → full match
+    - 0.6 → slightly below
+    - 0.3 → mismatch (e.g. junior applying to senior)
+
+3. **Data Extraction**
+   - Extract 'fullname' and 'location' (fallback to "Not Found").
+   - Summarize key experiences and relevant responsibilities under 'experience'.
+   - Extract available 'education' details.
+
+4. **Output Format**
+   - Return a **single JSON object** strictly matching the given schema.
+   - All content must be in English.
+   - Do **not** include any extra explanations — return only the JSON.
 """
 
     # 3. Конфигурация запроса к ИИ

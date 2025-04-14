@@ -22,15 +22,29 @@ async def send_email(to_email: str, subject: str, content: str):
         password=os.getenv("SMTP_PASSWORD"),
     )
 
-async def emailProccess(resume_id: int, pdf_text: str,proffesion:str):
+async def emailProccess(resume_id: int, pdf_text: str, tests_id: int):
+    import re
+
     # Ищем email в тексте с помощью регулярки
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
     match = re.search(email_pattern, pdf_text)
+
     if match:
         email_found = match.group(0)
         subject = f"Результаты обработки резюме #{resume_id}"
-        content = "Ваше резюме было успешно обработано. Спасибо за использование нашей платформы.ссылка на тест https://" + proffesion
+
+    
+        frontend_base_url = "https://frontend-domain.com/test"
+        link = f"{frontend_base_url}?resume_id={resume_id}&tests_id={tests_id}"
+
+        content = (
+            "Ваше резюме было успешно обработано.\n"
+            f"Пожалуйста, пройдите следующий тест: {link}\n\n"
+            "Спасибо за использование нашей платформы!"
+        )
+
         await send_email(to_email=email_found, subject=subject, content=content)
         print(f"Email sent to: {email_found}")
     else:
         print("Email not found in PDF text.")
+

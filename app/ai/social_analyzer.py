@@ -8,8 +8,6 @@ from google import genai
 from google.genai import types
 import json
 import logging
-from app.ai.sms_sendler import emailProccess
-
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -171,7 +169,7 @@ async def social_network_analyzer(text_to_extract):
         "twitter": "gd_lwxmeb2u1cniijd7t4",
     }
 
-    BRIGHTDATA_API_KEY = "b8ca1069f855a70d33248d585a12a2f7443f585bf840ad45a97605b5bf1f72d4"
+    BRIGHTDATA_API_KEY = "1efa3c19a262d99ce8c4f8c5f838eca181186738e4dc4b1289ba61b1da87cfa8"
     S3_BUCKET_NAME = "start_up"
 
     extracted_links = await extract_social_media_links_json(text_to_extract)
@@ -235,7 +233,6 @@ Requirements: {requirement}
 async def analyze_social(pdf_info:str,title:str,description:str,requirements:str,resume_id:int): 
     social_info  = await social_network_analyzer(pdf_info)
     profession = await analyze_proffesion(title,description,requirements)
-    await emailProccess(resume_id,pdf_info,profession)
     system_instructions = {
         "salesman": SELLER_INSTRUCTION,  # уже используется
         "salesman of it-product":SELLER_INSTRUCTION,

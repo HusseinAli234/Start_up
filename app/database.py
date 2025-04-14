@@ -7,7 +7,7 @@ load_dotenv()
 DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 # Создаем асинхронный движок
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 
 # Фабрика для создания сессий
 AsyncSessionLocal = sessionmaker(

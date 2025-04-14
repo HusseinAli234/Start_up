@@ -17,7 +17,7 @@ from typing import Optional
 from fastapi import Query
 from app.schemas.vacancy_schema import VacancyCreate
 from fastapi.middleware.cors import CORSMiddleware
-from app.ai.social_analyzer import analyze_social
+from app.ai.social_analyzer import analyze_social,analyze_proffesion
 from  app.services.cv_services import CVService
 import asyncio
 from .users import views as users_router
@@ -29,7 +29,11 @@ from app.database import AsyncSessionLocal
 import logging
 from app.schemas.test_schema import ResultOfTest
 from app.ai.sms_sendler import emailProccess
+from app.services.test_services import TestService
+
 logger = logging.getLogger(__name__)
+
+
 
 
 
@@ -47,13 +51,13 @@ app.include_router(vacancy_router.router)
 app.include_router(users_router.router)
 app.include_router(test_router.router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Разрешает все домены (замените на список доменов для ограничения)
-    allow_credentials=True,
-    allow_methods=["*"],  # Разрешает все методы (GET, POST, PUT и т. д.)
-    allow_headers=["*"],  # Разрешает все заголовки
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],  
+#     allow_credentials=True,
+#     allow_methods=["*"], 
+#     allow_headers=["*"],
+# )
 
 
 UPLOAD_DIR = "back_media/"
@@ -124,8 +128,12 @@ async def background_task(resume_id: int, file_path: str, description: str, titl
             logger.info(f"🚀 Starting background task for resume {resume_id}")
             service = resume_service.ResumeService(db)
             cv_services = CVService(db)
+            test_services = TestService(db)
             text = await cv_services.parse_pdf_to_text(file_path)
             social_skills = await analyze_social(text,title,description,requirements,resume_id)
+            profession = await analyze_proffesion(title,description,requirements)
+            tests_id = await test_services.get_test_ids_by_proffesion(profession)
+            await emailProccess(resume_id,text,tests_id)
             await service.resume_skill_add(resume_id, social_skills)
             await db.commit()
     except Exception as e:

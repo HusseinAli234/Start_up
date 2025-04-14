@@ -36,9 +36,14 @@ class TestService:
         return db_test  
     
 
+    async def get_test_ids_by_proffesion(self, find_proffesion: str) -> list[int]:
+        result = await self.db.execute(
+            select(SocialTest.id).where(SocialTest.proffesion == find_proffesion)
+        )
+        return result.scalars().all()
 
 
-    async def get_test(self, test_id: int) -> JobPosting:
+    async def get_test(self, test_id: int) -> SocialTest:
         result = await self.db.execute(
             select(SocialTest)
             .filter_by(id=test_id)

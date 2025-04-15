@@ -34,7 +34,7 @@ async def emailProccess(resume_id: int, pdf_text: str, tests_id: int):
         subject = f"Результаты обработки резюме #{resume_id}"
 
     
-        frontend_base_url = "https://frontend-domain.com/test"
+        frontend_base_url = "http://localhost:3000/test"
         link = f"{frontend_base_url}?resume_id={resume_id}&tests_id={tests_id}"
 
         content = (

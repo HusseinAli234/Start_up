@@ -1,6 +1,6 @@
 from sqlalchemy import String,Integer,Column
 from sqlalchemy.orm import relationship
-from app.database import Base
+from app.models.base import Base
 
 class ResumePDF(Base):
     __tablename__ = "resume_pdfs"

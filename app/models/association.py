@@ -1,5 +1,5 @@
 from sqlalchemy import Table, Column, ForeignKey, Integer
-from app.models import Base  # Импортируй свой Base, от которого все наследуется
+from app.models.base import Base
 
 resume_job_association = Table(
     "resume_job_association",
@@ -7,3 +7,5 @@ resume_job_association = Table(
     Column("resume_id", Integer, ForeignKey("resumes.id")),
     Column("job_posting_id", Integer, ForeignKey("job_postings.id")),
 )
+
+

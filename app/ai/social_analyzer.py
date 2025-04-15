@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 import os
 from google import genai
 from google.genai import types
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 load_dotenv()
 import asyncio
 import httpx
@@ -165,13 +169,13 @@ async def social_network_analyzer(text_to_extract):
         "twitter": "gd_lwxmeb2u1cniijd7t4",
     }
 
-    BRIGHTDATA_API_KEY = "b8ca1069f855a70d33248d585a12a2f7443f585bf840ad45a97605b5bf1f72d4"
+    BRIGHTDATA_API_KEY = "1efa3c19a262d99ce8c4f8c5f838eca181186738e4dc4b1289ba61b1da87cfa8"
     S3_BUCKET_NAME = "start_up"
 
     extracted_links = await extract_social_media_links_json(text_to_extract)
     if not extracted_links:
         return "No social media links found."
-
+    
     tasks = [
         process_platform(platform, link, dataset_id_map, BRIGHTDATA_API_KEY, S3_BUCKET_NAME)
         for platform, link in extracted_links.items()
@@ -187,7 +191,8 @@ async def analyze_proffesion(title: str, description: str, requirement: str) -> 
 You are an HR expert. Given the job title, description, and requirements, classify the job into one of the following categories:
 
 - IT
-- seller
+- salesman
+- salesman of IT-product
 - manager
 
 Only return one of the exact strings above. Do not explain.
@@ -210,7 +215,7 @@ Requirements: {requirement}
 
         # Извлекаем ответ
         text = response.text.strip().lower()
-        allowed = {"it", "seller", "manager"}
+        allowed = {"it", "salesman", "manager","salesman of it-product"}
 
         # Валидация
         if text not in allowed:
@@ -219,22 +224,23 @@ Requirements: {requirement}
 
     except Exception as e:
         print(f"Error in profession analysis: {e}")
-        return "seller"  # fallback на дефолт
+        return "salesman"  # fallback на дефолт
 
      
     
 
 
-async def analyze_social(pdf_info:str,title:str,description:str,requirements:str): 
+async def analyze_social(pdf_info:str,title:str,description:str,requirements:str,resume_id:int): 
     social_info  = await social_network_analyzer(pdf_info)
     profession = await analyze_proffesion(title,description,requirements)
     system_instructions = {
-        "seller": SELLER_INSTRUCTION,  # уже используется
+        "salesman": SELLER_INSTRUCTION,  # уже используется
+        "salesman of it-product":SELLER_INSTRUCTION,
         "it": """You are a senior tech recruiter and behavioral analyst specializing in identifying IT-relevant soft skills from social media presence (LinkedIn, GitHub profiles, Twitter tech threads, etc.). Focus on traits like logical thinking, communication, curiosity, collaboration, consistency, and professionalism in online communication. Use evidence to assign scores and justify clearly.""",
         "manager": """You are a professional organizational psychologist analyzing managerial soft skills based on social media. Look for leadership, decision-making, emotional intelligence, delegation, motivation, and strategic thinking. Score only if evidence is found. Justify each score clearly with examples."""
     }
 
-    chosen_instruction = system_instructions.get(profession, system_instructions["seller"])
+    chosen_instruction = system_instructions.get(profession, system_instructions["salesman"])
     model = "gemini-2.0-flash"
     contents = [
         types.Content(
@@ -319,12 +325,13 @@ async def analyze_social(pdf_info:str,title:str,description:str,requirements:str
 
     # 5. Парсинг ответа
     try:
+
         parsed_json = json.loads(json_text)
         if not isinstance(parsed_json, dict):
              raise json.JSONDecodeError(f"Response is not a JSON object (got {type(parsed_json)})", json_text, 0)
 
     except json.JSONDecodeError as e:
-        print(f"Raw AI response that failed JSON parsing:\n---\n{json_text}\n---")
+        (f"Raw AI response that failed JSON parsing:\n---\n{json_text}\n---")
         raise ValueError(f"Ошибка декодирования JSON: {e}. Ответ ИИ: {json_text}")
     except Exception as e:
         print(f"Unexpected error during JSON parsing: {e}")

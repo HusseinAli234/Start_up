@@ -1,6 +1,2 @@
-
-
-from sqlalchemy.orm import DeclarativeBase
-
-class Base(DeclarativeBase):
-    pass
+from .job_seekers import TypeSkill, Resume, Education, Experience, Skill
+from .employers import JobPosting, VacancySkill

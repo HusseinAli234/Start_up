@@ -142,6 +142,8 @@ class ResumeService:
         # Удаляем старую TestTotal, если существует
         if resume.test_total:
             await self.db.delete(resume.test_total)
+            await self.db.commit()  # вот это важно
+
 
         # Добавляем новые навыки
         skills_to_add_data = test_skills

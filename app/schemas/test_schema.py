@@ -24,7 +24,7 @@ class ResponseTest(BaseModel):
 
 class SubTest(BaseModel):
     title:str
-    result:int
+    result:float
 
 class ResultOfTest(BaseModel):
     resume_id:int

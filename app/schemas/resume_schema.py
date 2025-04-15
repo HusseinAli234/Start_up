@@ -19,7 +19,7 @@ class SkillType(str, Enum):
 
 class SkillSchema(BaseModel):
     title: str
-    level: int
+    level: float
     justification: str
     type: SkillType
 

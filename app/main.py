@@ -50,7 +50,13 @@ app.include_router(job_seekers_router.router)
 app.include_router(vacancy_router.router)
 app.include_router(users_router.router)
 app.include_router(test_router.router)
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost", "http://localhost:3000"],  
+    allow_credentials=True,
+    allow_methods=["*"], 
+    allow_headers=["*"],
+)
 UPLOAD_DIR = "back_media/"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 

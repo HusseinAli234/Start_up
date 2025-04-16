@@ -24,7 +24,7 @@ class SkillSchema(BaseModel):
     type: SkillType
 
 class HardTotal(BaseModel):
-    total:int
+    total:float
     justification:str
     class Config:
         orm_mode = True
@@ -35,7 +35,7 @@ class TestTotal(BaseModel):
         orm_mode = True
 
 class SoftTotal(BaseModel):
-    total:int
+    total:float
     justification:str
     class Config:
         orm_mode = True

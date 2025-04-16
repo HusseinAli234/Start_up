@@ -79,7 +79,7 @@ class HardTotal(Base):
 class SoftTotal(Base):
     __tablename__ = "soft_skills"
     id: Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True)
-    total: Mapped[float] = mapped_column(Float,index=True)
+    total: Mapped[float] = mapped_column(Float,index=True,default=0)
     justification: Mapped[str] = mapped_column(String,index=True)
     resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"), unique=True)
     resume: Mapped["Resume"] = relationship("Resume", back_populates="soft_total", lazy="selectin")

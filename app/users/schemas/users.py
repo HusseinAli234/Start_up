@@ -12,6 +12,10 @@ class UserBase(BaseModel):
     # Логотип, например, URL или путь к файлу
     logo: Optional[str] = None
 
+class UserResponse(BaseModel):
+    id: int
+    class Config:   
+        from_attributes = True
 
 class UserLoginSChema(BaseModel):
     email: EmailStr

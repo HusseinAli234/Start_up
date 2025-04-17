@@ -48,14 +48,25 @@ async def register(user: UserCreate, response: Response, db: AsyncSession = Depe
     token = security.create_access_token(
         uid=str(new_user.id), 
         subject={"email": new_user.email})
+    refresh_token = security.create_refresh_token(uid=str(new_user.id), subject={"email": new_user.email})
+
 
     # Устанавливаем токен в cookie
     response.set_cookie(
         key=config.JWT_ACCESS_COOKIE_NAME,
         value=token,
-        httponly=True
+        httponly=True,
+        secure=True,
+        samesite="none"
     )
-
+    response.set_cookie(
+        key=config.JWT_REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=config.JWT_REFRESH_TOKEN_EXPIRES
+    )
     return {"message": "Пользователь успешно зарегистрирован и залогинен"}
 
 
@@ -77,12 +88,16 @@ async def login(user: UserLoginSChema, response: Response, db: AsyncSession = De
     response.set_cookie(
         key=config.JWT_ACCESS_COOKIE_NAME,
         value=token,
-        httponly=True
+        httponly=True,
+        secure=True,
+        samesite="none"
     )
     response.set_cookie(
         key=config.JWT_REFRESH_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
+        secure=True,
+        samesite="none",
         max_age=config.JWT_REFRESH_TOKEN_EXPIRES
     )
 
@@ -106,7 +121,9 @@ async def refresh_token(request: Request, response: Response):
     response.set_cookie(
         key=config.JWT_ACCESS_COOKIE_NAME,
         value=new_access_token,
-        httponly=True
+        httponly=True,
+        samesite="none",
+        secure=True,
     )
     return {"message": "Access token обновлён"}
 

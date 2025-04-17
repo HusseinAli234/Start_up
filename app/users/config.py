@@ -14,7 +14,7 @@ config.JWT_SECRET_KEY = "SECRET_KEY"
 config.JWT_ACCESS_COOKIE_NAME = "my_access_token"
 config.JWT_REFRESH_COOKIE_NAME = "my_refresh_token"
 config.JWT_COOKIE_CSRF_PROTECT = False
-config.JWT_COOKIE_SAMESITE = 'None'
+config.JWT_COOKIE_SAMESITE = "None"
 config.JWT_COOKIE_SECURE = True
 config.JWT_TOKEN_LOCATION = ["cookies"]
 security = AuthX(config, model=User)

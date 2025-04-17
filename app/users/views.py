@@ -1,7 +1,7 @@
 from .models import User
 from .schemas import UserBase, UserLoginSChema, UserCreate
 from .config import security, config
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response,Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from passlib.context import CryptContext
@@ -9,6 +9,7 @@ from app.database import get_db
 from .models import User 
 from .schemas import UserBase, UserLoginSChema
 from .config import security, config
+from jose import jwt, JWTError
 
 # Создаем контекст для хеширования паролей
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -70,19 +71,47 @@ async def login(user: UserLoginSChema, response: Response, db: AsyncSession = De
     
     
     token = security.create_access_token(uid=str(db_user.id), subject={"email": db_user.email})
-    
+    refresh_token = security.create_refresh_token(uid=str(db_user.id), subject={"email": db_user.email})
+
     # Устанавливаем токен в виде HTTP-only cookie
     response.set_cookie(
         key=config.JWT_ACCESS_COOKIE_NAME,
         value=token,
         httponly=True
     )
-    
+    response.set_cookie(
+        key=config.JWT_REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=True,
+        max_age=config.JWT_REFRESH_TOKEN_EXPIRES
+    )
+
     return {"message": "Логин успешен"}
 
+@router.post("/refresh")
+async def refresh_token(request: Request, response: Response):
+    token = request.cookies.get(config.JWT_REFRESH_COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Нет refresh токена")
+    
+    try:
+        payload = jwt.decode(token, config.JWT_SECRET_KEY, algorithms=["HS256"])
+        uid = payload.get("sub")
+        if uid is None:
+            raise HTTPException(status_code=401, detail="Неверный refresh токен")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Недействительный refresh токен")
+    
+    new_access_token = security.create_access_token(uid=uid)
+    response.set_cookie(
+        key=config.JWT_ACCESS_COOKIE_NAME,
+        value=new_access_token,
+        httponly=True
+    )
+    return {"message": "Access token обновлён"}
 
 @router.post("/logout")
 async def logout(response: Response):
-    
     response.delete_cookie(key=config.JWT_ACCESS_COOKIE_NAME)
+    response.delete_cookie(key=config.JWT_REFRESH_COOKIE_NAME)
     return {"message": "Логаут успешен"}

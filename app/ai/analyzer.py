@@ -6,9 +6,9 @@ import json
 from app.schemas.vacancy_schema import SkillSchema
 from typing import List # Используем TypedDict для SkillSchema, если не импортирована
 import openai
-from sentence_transformers import SentenceTransformer, util
+# from sentence_transformers import SentenceTransformer, util
 
-model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+# model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 
 load_dotenv()
 client_GPT = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -23,11 +23,11 @@ except Exception as e:
     exit()
 
 
-def match_profession_semantic(vacancy_title: str, professions: list[str]) -> str:
-    embeddings = model.encode([vacancy_title] + professions, convert_to_tensor=True)
-    similarity_scores = util.pytorch_cos_sim(embeddings[0], embeddings[1:])[0]
-    best_index = similarity_scores.argmax()
-    return professions[best_index]
+# def match_profession_semantic(vacancy_title: str, professions: list[str]) -> str:
+#     embeddings = model.encode([vacancy_title] + professions, convert_to_tensor=True)
+#     similarity_scores = util.pytorch_cos_sim(embeddings[0], embeddings[1:])[0]
+#     best_index = similarity_scores.argmax()
+#     return professions[best_index]
 
 
 async def analyze_resume_chatgpt(user_prompt: str, skills: List[SkillSchema], requirements: str):

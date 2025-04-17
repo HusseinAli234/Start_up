@@ -6,13 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends, HTTPException
 from fastapi import Request
 from jose import jwt, JWTError
+from datetime import datetime, timedelta
 
 
 config = AuthXConfig()
 config.JWT_SECRET_KEY = "SECRET_KEY"
 config.JWT_ACCESS_COOKIE_NAME = "my_access_token"
+config.JWT_REFRESH_COOKIE_NAME = "my_refresh_token"
+config.JWT_COOKIE_CSRF_PROTECT = False
 config.JWT_TOKEN_LOCATION = ["cookies"]
-
 security = AuthX(config, model=User)
 
 

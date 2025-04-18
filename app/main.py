@@ -16,7 +16,7 @@ from app.routers import vacancy as vacancy_router
 from typing import Optional
 from fastapi import Query
 from app.schemas.vacancy_schema import VacancyCreate
-from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from app.ai.social_analyzer import analyze_social,analyze_proffesion
 from  app.services.cv_services import CVService
 import asyncio

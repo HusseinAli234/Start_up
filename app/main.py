@@ -30,7 +30,7 @@ import logging
 from app.schemas.test_schema import ResultOfTest
 from app.ai.sms_sendler import emailProccess
 from app.services.test_services import TestService
-
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 logger = logging.getLogger(__name__)
 
 
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(HTTPSRedirectMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000","http://localhost","https://api.sand-box.pp.ua","http://api.sand-box.pp.ua"],

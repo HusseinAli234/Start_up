@@ -46,17 +46,18 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost", "http://localhost:3000","http://172.18.0.4"],  
-    allow_credentials=True,
-    allow_methods=["*"], 
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost", "http://localhost:3000","http://172.18.0.4"],  
+#     allow_credentials=True,
+#     allow_methods=["*"], 
+#     allow_headers=["*"],
+# )
 app.include_router(job_seekers_router.router)
 app.include_router(vacancy_router.router)
 app.include_router(users_router.router)
 app.include_router(test_router.router)
+
 
 UPLOAD_DIR = "back_media/"
 os.makedirs(UPLOAD_DIR, exist_ok=True)

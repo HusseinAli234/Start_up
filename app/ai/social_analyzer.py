@@ -215,11 +215,14 @@ Requirements: {requirement}
 
         # Извлекаем ответ
         text = response.text.strip().lower()
-        allowed = {"it", "salesman", "manager","salesman of it-product"}
+        # allowed = {"it", "salesman", "manager","salesman of it-product"}
+        allowed = {"salesman"}
 
         # Валидация
         if text not in allowed:
-            raise ValueError(f"Invalid classification returned: {text}")
+            return "salesman"
+            # raise ValueError(f"Invalid classification returned: {text}")
+        print(text)
         return text
 
     except Exception as e:

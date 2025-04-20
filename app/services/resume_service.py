@@ -147,9 +147,9 @@ class ResumeService:
         summary = 0
         skills = []
         for skill in skills_to_add_data:
-            score = skill.result + 20
+            score = abs(skill.result) + 20
             summary += score
-            level = round(score / (40 / 100), 2)
+            level = abs(round(score / (40 / 100), 2))
 
             skill_obj = Skill(
                 title=skill.title,

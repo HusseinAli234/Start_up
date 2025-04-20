@@ -230,6 +230,93 @@ Requirements: {requirement}
         return "salesman"  # fallback на дефолт
 
      
+async def extract_emails_from_resume(pdf_info: str):
+    model = "gemini-2.0-flash"
+
+    system_instruction = """
+You are an AI assistant helping a recruiter extract email addresses from a candidate's resume. Your task is to find:
+1. The candidate's personal email address.
+2. A list of email addresses that appear to belong to employers (e.g., company domains, HR contacts, supervisors).
+
+Rules:
+- If multiple personal emails are found, choose the one that clearly belongs to the candidate.
+- For employer emails, return a list of unique company-related email addresses.
+- If no data is found, return null for the personal email and an empty list for employers.
+
+Output format (JSON):
+{
+  "employee_email": "example@gmail.com",
+  "employer_emails": ["hr@company.com", "lead@techcorp.com"]
+}
+If nothing found:
+{
+  "employee_email": null,
+  "employer_emails": []
+}
+"""
+
+    contents = [
+        types.Content(
+            role="user",
+            parts=[types.Part.from_text(text=pdf_info)],
+        ),
+    ]
+
+    generate_content_config = types.GenerateContentConfig(
+        temperature=0.2,
+        response_mime_type="application/json",
+        system_instruction=[types.Part.from_text(text=system_instruction)],
+        response_schema=genai.types.Schema(
+            type=genai.types.Type.OBJECT,
+            required=["employee_email", "employer_emails"],
+            properties={
+                "employee_email": genai.types.Schema(
+                    type=genai.types.Type.STRING,
+                    description="Candidate's email address, or null if not found.",
+                    nullable=True,
+                ),
+                "employer_emails": genai.types.Schema(
+                    type=genai.types.Type.ARRAY,
+                    description="List of employer/company email addresses.",
+                    items=genai.types.Schema(type=genai.types.Type.STRING),
+                ),
+            },
+        ),
+    )
+
+    try:
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=contents,
+            config=generate_content_config,
+        )
+
+        if hasattr(response, 'text') and response.text:
+            json_text = response.text
+        else:
+            try:
+                json_text = response.candidates[0].content.parts[0].text
+            except (AttributeError, IndexError, TypeError) as e:
+                print(f"Error accessing response parts via candidates. Error: {e}")
+                raise ValueError("Could not extract text from AI response.")
+
+    except Exception as e:
+        print(f"Gemini API call failed: {type(e).__name__}: {e}")
+        raise ValueError(f"AI generation error: {e}")
+
+    try:
+        parsed_json = json.loads(json_text)
+        if not isinstance(parsed_json, dict):
+            raise json.JSONDecodeError("Not a JSON object", json_text, 0)
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error:\n---\n{json_text}\n---")
+        raise ValueError(f"JSON decoding error: {e}. AI response: {json_text}")
+    except Exception as e:
+        print(f"Unexpected error parsing JSON: {e}")
+        raise ValueError(f"Unexpected JSON parsing error: {e}")
+
+    print(parsed_json)
+    return parsed_json
     
 
 

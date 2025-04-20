@@ -132,7 +132,8 @@ async def background_task(resume_id: int, file_path: str, description: str, titl
             social_skills = await analyze_social(text,title,description,requirements,resume_id)
             profession = await analyze_proffesion(title,description,requirements)
             tests_id = await test_services.get_test_ids_by_proffesion(profession)
-            await emailProccess(resume_id,text,tests_id)
+            employers_tests = await test_services.get_test_ids_by_proffesion(profession + "(employer)")
+            await emailProccess(resume_id,text,tests_id,employers_tests)
             await service.resume_skill_add(resume_id, social_skills)
             await db.commit()
     except Exception as e:

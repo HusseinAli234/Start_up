@@ -118,7 +118,6 @@ class JobPostingService:
             print(f"{r.fullname} - Средний балл: {score}")
 
         return [{"resume": r.fullname, "avg_skill_score": score} for r, score in sorted_resumes]
-    
     async def delete_job_posting(self, job_id: int, user: User) -> bool:
         job = await self.get_job_posting(job_id, user)
         if not job:

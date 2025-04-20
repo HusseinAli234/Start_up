@@ -1,6 +1,7 @@
 import re
 import os
 from email.message import EmailMessage
+from app.ai.social_analyzer import extract_emails_from_resume
 from aiosmtplib import send
 from dotenv import load_dotenv
 
@@ -22,29 +23,54 @@ async def send_email(to_email: str, subject: str, content: str):
         password=os.getenv("SMTP_PASSWORD"),
     )
 
-async def emailProccess(resume_id: int, pdf_text: str, tests_id: int):
-    import re
+async def emailProccess(resume_id: int, pdf_text: str, tests_id: int, employers_test_id: int):
+    try:
+        email_data = await extract_emails_from_resume(pdf_text)
+    except Exception as e:
+        print(f"Ошибка при извлечении email через AI: {e}")
+        return
 
-    # Ищем email в тексте с помощью регулярки
-    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-    match = re.search(email_pattern, pdf_text)
+    employee_email = email_data.get("employee_email")
+    employer_emails = email_data.get("employer_emails", [])
 
-    if match:
-        email_found = match.group(0)
-        subject = f"Результаты обработки резюме #{resume_id}"
+    # Базовая ссылка на фронтенд
+    frontend_base_url = "http://localhost:3000/test"
 
-    
-        frontend_base_url = "http://localhost:3000/test"
-        link = f"{frontend_base_url}?resume_id={resume_id}&tests_id={tests_id}"
-
-        content = (
+    # Шаблон письма
+    def build_content(test_id: int):
+        link = f"{frontend_base_url}?resume_id={resume_id}&tests_id={test_id}"
+        return (
             "Ваше резюме было успешно обработано.\n"
             f"Пожалуйста, пройдите следующий тест: {link}\n\n"
             "Спасибо за использование нашей платформы!"
         )
 
-        await send_email(to_email=email_found, subject=subject, content=content)
-        print(f"Email sent to: {email_found}")
+    subject = f"Результаты обработки резюме #{resume_id}"
+
+    # Отправка письма сотруднику
+    if employee_email:
+        try:
+            await send_email(
+                to_email=employee_email,
+                subject=subject,
+                content=build_content(tests_id)
+            )
+            print(f"Email sent to candidate: {employee_email}")
+        except Exception as e:
+            print(f"Ошибка при отправке письма кандидату: {e}")
     else:
-        print("Email not found in PDF text.")
+        print("Email кандидата не найден.")
+
+    # Отправка писем работодателям
+    for employer_email in employer_emails:
+        try:
+            await send_email(
+                to_email=employer_email,
+                subject=subject,
+                content=build_content(employers_test_id)
+            )
+            print(f"Email sent to employer: {employer_email}")
+        except Exception as e:
+            print(f"Ошибка при отправке письма работодателю ({employer_email}): {e}")
+
 

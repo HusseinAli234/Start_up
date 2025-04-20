@@ -122,45 +122,45 @@ class ResumeService:
         self.db.add_all(skills)
         await self.db.commit()
 
-async def test_skill_add(self, resume_id: int, test_skills: list):
-    # Проверка на существование резюме
-    result = await self.db.execute(select(Resume).where(Resume.id == resume_id))
-    resume = result.scalar_one_or_none()
+    async def test_skill_add(self, resume_id: int, test_skills: list):
+        # Проверка на существование резюме
+        result = await self.db.execute(select(Resume).where(Resume.id == resume_id))
+        resume = result.scalar_one_or_none()
 
-    if resume is None:
-        raise ValueError(f"Resume with id {resume_id} not found")
+        if resume is None:
+            raise ValueError(f"Resume with id {resume_id} not found")
 
-    # Не удаляем старые навыки — только добавляем новые
-    skills_to_add_data = test_skills
-    summary = 0
-    skills = []
+        # Не удаляем старые навыки — только добавляем новые
+        skills_to_add_data = test_skills
+        summary = 0
+        skills = []
 
-    for skill in skills_to_add_data:
-        score = round((skill.result + 60) / (120 / 100), 2)
-        summary += score
-        level = score  # или level = score, если одно и то же
+        for skill in skills_to_add_data:
+            score = round((skill.result + 60) / (120 / 100), 2)
+            summary += score
+            level = score  # или level = score, если одно и то же
 
-        skill_obj = Skill(
-            title=skill.title,
-            level=level,
-            justification=" ",
-            type=TypeSkill.SOFT,
-            resume_id=resume_id
-        )
-        skills.append(skill_obj)
+            skill_obj = Skill(
+                title=skill.title,
+                level=level,
+                justification="",
+                type=TypeSkill.SOFT,
+                resume_id=resume_id
+            )
+            skills.append(skill_obj)
 
-    # Обновляем или создаём TestTotal
-    if resume.test_total:
-        old_total = resume.test_total.total
-        resume.test_total.total = round((old_total * 0.5 + summary * 0.5), 2)
-    else:
-        resume.test_total = TestTotal(
-            total=round(summary, 2),
-            resume_id=resume_id
-        )
+        # Обновляем или создаём TestTotal
+        if resume.test_total:
+            old_total = resume.test_total.total
+            resume.test_total.total = round((old_total * 0.5 + summary * 0.5), 2)
+        else:
+            resume.test_total = TestTotal(
+                total=round(summary, 2),
+                resume_id=resume_id
+            )
 
-    self.db.add_all(skills)
-    await self.db.commit()
+        self.db.add_all(skills)
+        await self.db.commit()
 
 
         

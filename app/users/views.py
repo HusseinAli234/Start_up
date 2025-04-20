@@ -126,7 +126,28 @@ async def refresh_token(request: Request, response: Response):
         secure=True,
     )
     return {"message": "Access token обновлён"}
+@router.get("/me", response_model=UserBase)
+async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
+    token = request.cookies.get(config.JWT_ACCESS_COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Access токен не найден")
 
+    try:
+        payload = jwt.decode(token, config.JWT_SECRET_KEY, algorithms=["HS256"])
+        uid = payload.get("sub")
+        if uid is None:
+            raise HTTPException(status_code=401, detail="Неверный access токен")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Недействительный access токен")
+
+    stmt = select(User).where(User.id == int(uid))
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    return user
 @router.post("/logout")
 async def logout(response: Response):
     response.delete_cookie(key=config.JWT_ACCESS_COOKIE_NAME)

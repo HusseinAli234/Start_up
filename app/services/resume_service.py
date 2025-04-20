@@ -52,7 +52,6 @@ class ResumeService:
             for skill in resume_data.skills
         ]
         
-        # Устанавливаем связь с пользователем напрямую
         db_resume.user = user
 
         with self.db.no_autoflush:
@@ -123,51 +122,46 @@ class ResumeService:
         self.db.add_all(skills)
         await self.db.commit()
 
-    async def test_skill_add(self, resume_id: int, test_skills: list):
-        # Проверка на существование резюме
-        result = await self.db.execute(select(Resume).where(Resume.id == resume_id))
-        resume = result.scalar_one_or_none()
+async def test_skill_add(self, resume_id: int, test_skills: list):
+    # Проверка на существование резюме
+    result = await self.db.execute(select(Resume).where(Resume.id == resume_id))
+    resume = result.scalar_one_or_none()
 
-        if resume is None:
-            raise ValueError(f"Resume with id {resume_id} not found")
+    if resume is None:
+        raise ValueError(f"Resume with id {resume_id} not found")
 
-        # Удаляем старые SOFT-навыки, связанные с тестом
-        await self.db.execute(
-            delete(Skill).where(Skill.resume_id == resume_id, Skill.type == TypeSkill.TEST)
+    # Не удаляем старые навыки — только добавляем новые
+    skills_to_add_data = test_skills
+    summary = 0
+    skills = []
+
+    for skill in skills_to_add_data:
+        score = round((skill.result + 60) / (120 / 100), 2)
+        summary += score
+        level = score  # или level = score, если одно и то же
+
+        skill_obj = Skill(
+            title=skill.title,
+            level=level,
+            justification=" ",
+            type=TypeSkill.SOFT,
+            resume_id=resume_id
         )
+        skills.append(skill_obj)
 
-        # Удаляем старую TestTotal, если существует
-        if resume.test_total:
-            await self.db.delete(resume.test_total)
-            await self.db.commit()  # вот это важно
-
-
-        # Добавляем новые навыки
-        skills_to_add_data = test_skills
-        summary = 0
-        skills = []
-        for skill in skills_to_add_data:
-            score = abs(skill.result) + 20
-            summary += score
-            level = abs(round(score / (40 / 100), 2))
-
-            skill_obj = Skill(
-                title=skill.title,
-                level=level,
-                justification=" ",
-                type=TypeSkill.SOFT,
-                resume_id=resume_id
-            )
-            skills.append(skill_obj)
-
-        # Обновляем TestTotal
+    # Обновляем или создаём TestTotal
+    if resume.test_total:
+        old_total = resume.test_total.total
+        resume.test_total.total = round((old_total * 0.5 + summary * 0.5), 2)
+    else:
         resume.test_total = TestTotal(
-            total=round(summary / ((len(skills) * 40) / 100), 2),
+            total=round(summary, 2),
             resume_id=resume_id
         )
 
-        self.db.add_all(skills)
-        await self.db.commit()
+    self.db.add_all(skills)
+    await self.db.commit()
+
 
         
     async def get_resume(self, resume_id: int, user: User) -> Resume:

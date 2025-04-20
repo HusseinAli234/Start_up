@@ -37,8 +37,14 @@ async def emailProccess(resume_id: int, pdf_text: str, tests_id: int, employers_
     frontend_base_url = "http://localhost:3000/test"
 
     # Шаблон письма
-    def build_content(test_id: int):
-        link = f"{frontend_base_url}?resume_id={resume_id}&tests_id={test_id}"
+    def build_content(test_id):
+        # Если test_id — это список, то превращаем его в строку вида 1,2,3
+        if isinstance(test_id, list):
+            test_id_str = ",".join(map(str, test_id))
+        else:
+            test_id_str = str(test_id)
+
+        link = f"{frontend_base_url}?resume_id={resume_id}&tests_id={test_id_str}"
         return (
             "Ваше резюме было успешно обработано.\n"
             f"Пожалуйста, пройдите следующий тест: {link}\n\n"

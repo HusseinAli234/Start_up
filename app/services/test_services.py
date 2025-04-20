@@ -52,8 +52,8 @@ class TestService:
             )
         )
         return result.scalars().first()
-    async def delete_test(self, test_id: int, user: User) -> bool:
-        test = await self.get_test(test_id, user)
+    async def delete_test(self, test_id: int) -> bool:
+        test = await self.get_test(test_id)
         if not test:
             return False
         await self.db.delete(test)

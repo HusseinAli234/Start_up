@@ -33,9 +33,9 @@ async def get_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)):
     return test
 
 @router.delete("/{test_id}")
-async def delete_vacancy(test_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+async def delete_vacancy(test_id: int, db: AsyncSession = Depends(get_db)):
     service = TestService(db)
-    if not await service.delete_test(test_id, user):  # Передаем user сюда
+    if not await service.delete_test(test_id):  # Передаем user сюда
         raise HTTPException(status_code=404, detail="Test not found or you don't have permission to delete it")
     
     return {"message": "Test deleted successfully"}

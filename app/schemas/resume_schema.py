@@ -15,7 +15,7 @@ class JobShort(BaseModel):
 class SkillType(str, Enum):
     HARD = "HARD"
     SOFT = "SOFT"
-
+    TEST = "TEST"
 
 class SkillSchema(BaseModel):
     title: str

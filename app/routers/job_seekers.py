@@ -39,8 +39,13 @@ async def get_resume_by_id(resume_id: int, db: AsyncSession = Depends(get_db), u
         raise HTTPException(status_code=404, detail="Resume not found")
     return resume
 
-# @router.post("/save_result/{resume_id}")
-# async def save_test_result(resume_id:int,db:AsyncSession = Depends(get_db)):
+@router.get("/resumes_by_vacancy/{vacancy_id}",response_model=List[ResumeResponse])
+async def save_test_result(vacancy_id:int,db:AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+    service = ResumeService(db)
+    resume = await service.get_resumes_by_vacancy_sorted(vacancy_id, user)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    return resume
 
 
 

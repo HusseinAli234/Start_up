@@ -162,7 +162,32 @@ class ResumeService:
         self.db.add_all(skills)
         await self.db.commit()
 
+    async def get_resumes_by_vacancy_sorted(self, vacancy_id: int,user:User) -> list[Resume]:
+        # Получаем все резюме, прикреплённые к вакансии
+        result = await self.db.execute(
+            select(Resume)
+            .filter_by(user_id=user.id)
+            .join(Resume.job_postings)
+            .where(JobPosting.id == vacancy_id)
+            .options(
+                selectinload(Resume.soft_total),
+                selectinload(Resume.hard_total),
+                selectinload(Resume.test_total)
+            )
+        )
+        resumes = result.scalars().all()
 
+        # Вычисляем рейтинг каждого резюме на основе total значений
+        def calculate_total_score(resume: Resume):
+            soft_score = resume.soft_total.total if resume.soft_total else 0
+            hard_score = resume.hard_total.total if resume.hard_total else 0
+            test_score = resume.test_total.total if resume.test_total else 0
+            return soft_score + hard_score + test_score
+
+        # Сортировка по сумме всех total (по убыванию)
+        sorted_resumes = sorted(resumes, key=calculate_total_score, reverse=True)
+
+        return sorted_resumes
         
     async def get_resume(self, resume_id: int, user: User) -> Resume:
     # Используем selectinload для предзагрузки связанных объектов

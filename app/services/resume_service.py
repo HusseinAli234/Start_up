@@ -136,7 +136,7 @@ class ResumeService:
         skills = []
 
         for skill in skills_to_add_data:
-            score = round((skill.result + 60) / (120 / 100), 2)
+            score = round((skill.result / 40 * 100),2)
             summary += score
             level = score  # или level = score, если одно и то же
 
@@ -152,7 +152,7 @@ class ResumeService:
         # Обновляем или создаём TestTotal
         if resume.test_total:
             old_total = resume.test_total.total
-            resume.test_total.total = round((old_total * 0.5 + summary * 0.5), 2)
+            resume.test_total.total = round((old_total * 0.5) + (((summary / (40 * len(skills))) * 100)  * 0.5), 2)
         else:
             resume.test_total = TestTotal(
                 total=round(summary, 2),

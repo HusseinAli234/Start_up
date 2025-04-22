@@ -16,16 +16,25 @@ config.JWT_REFRESH_COOKIE_NAME = "my_refresh_token"
 config.JWT_COOKIE_CSRF_PROTECT = False
 config.JWT_COOKIE_SAMESITE = "None"
 config.JWT_COOKIE_SECURE = True
-config.JWT_TOKEN_LOCATION = ["cookies"]
+config.JWT_TOKEN_LOCATION = ["cookies", "headers"]
 security = AuthX(config, model=User)
 
 
 
 async def safe_get_current_subject(request: Request) -> User:
+    # 1. Пробуем взять токен из cookie
     token = request.cookies.get(config.JWT_ACCESS_COOKIE_NAME)
+
+    # 2. Если нет — пробуем из заголовка Authorization
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ")[1].strip()
+    
+    # 3. Если всё равно нет токена — ошибка
     if not token:
         raise HTTPException(status_code=401, detail="Нет токена")
-    
+
     try:
         payload = jwt.decode(token, config.JWT_SECRET_KEY, algorithms=["HS256"])
         uid = payload.get("sub")
@@ -33,7 +42,7 @@ async def safe_get_current_subject(request: Request) -> User:
             raise HTTPException(status_code=401, detail="Неверный токен")
     except JWTError:
         raise HTTPException(status_code=401, detail="Недействительный токен")
-    
+
     db = await anext(get_db())
     try:
         result = await db.execute(select(User).filter_by(id=uid))
@@ -43,3 +52,4 @@ async def safe_get_current_subject(request: Request) -> User:
         return user
     finally:
         await db.aclose()
+

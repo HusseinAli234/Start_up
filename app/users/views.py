@@ -15,7 +15,19 @@ from jose import jwt, JWTError
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+async def get_token_from_request(request: Request, token_name: str = None) -> str | None:
+    token = None
+    # 1. Пробуем куки
+    if token_name:
+        token = request.cookies.get(token_name)
 
+    # 2. Пробуем из заголовка
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ")[1].strip()
+    
+    return token
 @router.post("/register")
 async def register(user: UserCreate, response: Response, db: AsyncSession = Depends(get_db)):
 
@@ -67,7 +79,10 @@ async def register(user: UserCreate, response: Response, db: AsyncSession = Depe
         samesite="none",
         max_age=config.JWT_REFRESH_TOKEN_EXPIRES
     )
-    return {"message": "Пользователь успешно зарегистрирован и залогинен"}
+    return {"message": "Пользователь успешно зарегистрирован и залогинен",
+             "access_token": token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"}
 
 
 
@@ -101,11 +116,14 @@ async def login(user: UserLoginSChema, response: Response, db: AsyncSession = De
         max_age=config.JWT_REFRESH_TOKEN_EXPIRES
     )
 
-    return {"message": "Логин успешен"}
+    return {"message": "Логин успешен",
+             "access_token": token,
+    "refresh_token": refresh_token,
+    "token_type": "bearer"}
 
 @router.post("/refresh")
 async def refresh_token(request: Request, response: Response):
-    token = request.cookies.get(config.JWT_REFRESH_COOKIE_NAME)
+    token =  await get_token_from_request(request, config.JWT_REFRESH_COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=401, detail="Нет refresh токена")
     
@@ -125,10 +143,14 @@ async def refresh_token(request: Request, response: Response):
         samesite="none",
         secure=True,
     )
-    return {"message": "Access token обновлён"}
+    return {"message": "Access token обновлён",
+             "access_token": token
+            }
+
+
 @router.get("/me", response_model=UserBase)
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
-    token = request.cookies.get(config.JWT_ACCESS_COOKIE_NAME)
+    token = await get_token_from_request(request, config.JWT_ACCESS_COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=401, detail="Access токен не найден")
 
@@ -153,3 +175,6 @@ async def logout(response: Response):
     response.delete_cookie(key=config.JWT_ACCESS_COOKIE_NAME)
     response.delete_cookie(key=config.JWT_REFRESH_COOKIE_NAME)
     return {"message": "Логаут успешен"}
+
+
+

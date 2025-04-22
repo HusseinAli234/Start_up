@@ -122,6 +122,17 @@ class JobPostingService:
         job = await self.get_job_posting(job_id, user)
         if not job:
             return False
+        result = await self.db.execute(
+        select(Resume).join(Resume.job_postings).where(JobPosting.id == job_id)
+    )
+        resumes = result.scalars().all()
+
+        # ❌ Удалить каждое резюме
+        for resume in resumes:
+            await self.db.delete(resume)
+
+        # ❌ Удаляем саму вакансию
         await self.db.delete(job)
+
         await self.db.commit()
         return True

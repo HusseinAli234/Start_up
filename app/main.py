@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000","http://localhost","https://api.sand-box.pp.ua","http://api.sand-box.pp.ua","https://husseinali234.github.io"],
+    allow_origins=["http://localhost:3000","http://localhost","https://api.sand-box.pp.ua","http://api.sand-box.pp.ua","https://husseinali234.github.io","https://sandbox-front-dev-390134393019.us-central1.run.app/"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -66,7 +66,7 @@ async def extract_social_media_links_json(text):
       
         "twitter": r"(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/[A-Za-z0-9_]+/?",
         "instagram": r"(?:https?:\/\/)?(?:www\.)?instagram\.com\/[A-Za-z0-9_\-\.]+/?",
-        "linkedin": r"(?:https?:\/\/)?(?:www\.)?linkedin\.com\/(?:in|company)\/[A-Za-z0-9_\-\.]+/?", # Added /company/ possibility
+        "linkedin": r"(?:https?:\/\/)?(?:www\.)?linkedin\.com\/(?:in|company)\/[a-zA-Z0-9\-]+(?:-[a-zA-Z0-9]+)*\/?", # Added /company/ possibility
     }
 
     social_media_links = {}

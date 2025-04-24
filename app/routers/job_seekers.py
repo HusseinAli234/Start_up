@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.database import AsyncSessionLocal
 from app.users.config import security, config, safe_get_current_subject
 from app.users.models import User
+from sqlalchemy import desc
 
 
 router = APIRouter(prefix="/resumes", tags=["Resumes"])
@@ -20,6 +21,7 @@ async def get_all_resumes(db: AsyncSession = Depends(get_db), user: User = Depen
     result = await db.execute(
         select(Resume)
         .filter_by(user_id=user.id)
+        .order_by(desc(Resume.id))
         .options(
             selectinload(Resume.skills),
             selectinload(Resume.educations),

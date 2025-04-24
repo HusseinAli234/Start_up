@@ -1,7 +1,7 @@
 # models.py
 import enum
 from sqlalchemy.orm import  Mapped, mapped_column, relationship
-from sqlalchemy import Integer, String, Float, ForeignKey, Enum as SAEnum
+from sqlalchemy import Integer, String, Float, ForeignKey, Enum as SAEnum,Boolean
 from app.models.base import Base
 from app.models.association import resume_job_association     
 from app.users.models.users import User
@@ -11,6 +11,7 @@ class TypeSkill(enum.Enum):
     SOFT = "SOFT"
     HARD = "HARD"
     TEST = "TEST"
+    FEEDBACK="FEEDBACK"
 
 
 class Resume(Base):
@@ -106,6 +107,7 @@ class SocialTest(Base):
     __tablename__ = "social_test"
     id: Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True)
     title: Mapped[str] = mapped_column(String,index=True)
+    is_Optional:Mapped[bool] = mapped_column(Boolean,index=True,nullable=True)
     proffesion:Mapped[str] = mapped_column(String,index=True,nullable=True)
     questions: Mapped[list["TestQuestion"]] = relationship(
         "TestQuestion",
@@ -121,7 +123,8 @@ class TestQuestion(Base):
     __tablename__ = "test_question"
     id: Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True)
     question: Mapped[str] = mapped_column(String,index=True)
-    mark:Mapped[int] = mapped_column(Integer,index=True)
+    mark:Mapped[int] = mapped_column(Integer,index=True,nullable=True)
+    source:Mapped[str] = mapped_column(String,index=True,nullable=True)
     test_id:Mapped[int] = mapped_column(Integer,ForeignKey("social_test.id"))
     social_test: Mapped["SocialTest"] = relationship("SocialTest",back_populates="questions",lazy="selectin") 
        

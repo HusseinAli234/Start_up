@@ -5,26 +5,31 @@ from typing import Optional
 
 class Question(BaseModel):
     question: str
-    mark: int
+    mark: Optional[int]
+    source:Optional[str]
     class Config:
         orm_mode = True   
 
 class CreateTest(BaseModel):
     title: str
     proffesion:str
+    isOptional:bool
     questions: List[Question]
 
 class ResponseTest(BaseModel):
     id: int
     title: str
     proffesion:str
+    is_Optional:bool
     questions: List[Question]
     class Config:
         orm_mode = True  
 
 class SubTest(BaseModel):
     title:str
-    result:float
+    result:Optional[float]
+    is_Optional: Optional[bool]
+    maximum:Optional[float]
 
 class ResultOfTest(BaseModel):
     resume_id:int

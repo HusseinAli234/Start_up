@@ -20,7 +20,7 @@ class CVService:
             for page in pdf.pages:
                 page_text = page.extract_text(layout=True)
                 if page_text:
-                    text.append(page_text)
+                    text.append(page_text)           
         return "\n".join(text)
 
     async def parse_pdf_to_text(self, file_path: str) -> str:

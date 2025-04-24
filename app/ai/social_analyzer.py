@@ -8,7 +8,7 @@ from google import genai
 from google.genai import types
 import json
 import logging
-
+from typing import Dict
 logger = logging.getLogger(__name__)
 load_dotenv()
 import asyncio
@@ -63,10 +63,9 @@ async def extract_social_media_links_json(text):
     """Extracts social media profile links from text."""
     social_media_patterns = {
         "facebook": r"(?:https?:\/\/)?(?:www\.)?facebook\.com\/[A-Za-z0-9_\-\.]+/?",
-      
         "twitter": r"(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/[A-Za-z0-9_]+/?",
         "instagram": r"(?:https?:\/\/)?(?:www\.)?instagram\.com\/[A-Za-z0-9_\-\.]+/?",
-        "linkedin": r"(?:https?:\/\/)?(?:www\.)?linkedin\.com\/(?:in|company)\/[a-zA-Z0-9\-]+(?:-[a-zA-Z0-9]+)*\/?", # Added /company/ possibility
+        "linkedin": r"(?:https?:\/\/)?(?:www\.)?linkedin\.com\/(?:in|company)\/[a-zA-Z0-9\-]+(?:-[a-zA-Z0-9]+)*\/?",
     }
 
     social_media_links = {}
@@ -86,7 +85,6 @@ async def process_platform(platform, link, dataset_id_map, api_key, bucket_name)
     summary = ""
     if platform not in dataset_id_map:
         return f"  -> Warning: No dataset_id configured for platform '{platform}'. Skipping.\n"
-
     current_dataset_id = dataset_id_map[platform]
     input_data = [{"url": link}]
     trigger_payload = {
@@ -157,7 +155,7 @@ async def process_platform(platform, link, dataset_id_map, api_key, bucket_name)
             return f"{platform}: HTTP error - {str(e)}"
         except Exception as e:
             return f"{platform}: Unexpected error - {str(e)}"
-
+    print(summary)
     return summary
 
 
@@ -172,10 +170,9 @@ async def social_network_analyzer(text_to_extract):
     BRIGHTDATA_API_KEY = "2d50c51f16939d3298d0d98530b722e4f31d2ff78a7784923d84c71298e7924f"
     S3_BUCKET_NAME = "start_up"
 
-    extracted_links = await extract_social_media_links_json(text_to_extract)
+    extracted_links = await extract_social_media_links_ai(text_to_extract)
     if not extracted_links:
         return "No social media links found."
-    
     tasks = [
         process_platform(platform, link, dataset_id_map, BRIGHTDATA_API_KEY, S3_BUCKET_NAME)
         for platform, link in extracted_links.items()
@@ -184,6 +181,44 @@ async def social_network_analyzer(text_to_extract):
     results = await asyncio.gather(*tasks)
     return "\n".join(results)
 
+async def extract_social_media_links_ai(text: str) -> Dict[str, str]:
+    prompt = f"""
+You are a smart AI that extracts social media profile links from text. Return a JSON dictionary with keys as platforms (facebook, instagram, linkedin, twitter) and values as the first URL found in the text for each platform (if any).
+
+If a link is not found for a platform, do not include that key.
+
+Example format:
+{{
+  "linkedin": "https://linkedin.com/in/example",
+  "x": "https://x.com/example"
+}}
+
+Return a JSON dictionary where keys are lowercase platform names: "facebook", "x", "instagram", "linkedin".
+
+Values must be full URLs starting with **https://** and without a trailing slash.
+
+
+Text:
+{text}
+"""
+
+    try:
+        response = await client.aio.models.generate_content(
+            model="gemini-1.5-flash-8b",
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])],
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                response_mime_type="application/json"
+            )
+        )
+
+        # Преобразуем результат в словарь
+        import json
+        return json.loads(response.text)
+
+    except Exception as e:
+        print(f"Ошибка при извлечении ссылок через AI: {e}")
+        return {}
 
 
 async def analyze_proffesion(title: str, description: str, requirement: str) -> str:
@@ -322,6 +357,7 @@ If nothing found:
 
 async def analyze_social(pdf_info:str,title:str,description:str,requirements:str,resume_id:int): 
     social_info  = await social_network_analyzer(pdf_info)
+    print(social_info)
     profession = await analyze_proffesion(title,description,requirements)
     system_instructions = {
         "salesman": SELLER_INSTRUCTION,  # уже используется

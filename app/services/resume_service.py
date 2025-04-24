@@ -129,30 +129,39 @@ class ResumeService:
 
         if resume is None:
             raise ValueError(f"Resume with id {resume_id} not found")
-
-        # Не удаляем старые навыки — только добавляем новые
         skills_to_add_data = test_skills
         summary = 0
+        maximum_summary = 0
         skills = []
-
         for skill in skills_to_add_data:
-            score = round((skill.result / 40 * 100),2)
-            summary += score
-            level = score  # или level = score, если одно и то же
-
-            skill_obj = Skill(
+            if skill.is_Optional:
+                skill_obj = Skill(
                 title=skill.title,
-                level=level,
-                justification="",
-                type=TypeSkill.SOFT,
+                level=0,
+                justification="Отзыв работодателя",
+                type=TypeSkill.FEEDBACK,
                 resume_id=resume_id
             )
-            skills.append(skill_obj)
+                skills.append(skill_obj)
+            else:
+                score = round(((skill.result / skill.maximum) * 100),2)
+                summary += score
+                maximum_summary += skill.maximum
+                level = score  # или level = score, если одно и то же
+
+                skill_obj = Skill(
+                    title=skill.title,
+                    level=level,
+                    justification="Результат теста",
+                    type=TypeSkill.TEST,
+                    resume_id=resume_id
+                )
+                skills.append(skill_obj)
 
         # Обновляем или создаём TestTotal
         if resume.test_total:
             old_total = resume.test_total.total
-            resume.test_total.total = round((old_total * 0.5) + (((summary / (40 * len(skills))) * 100)  * 0.5), 2)
+            resume.test_total.total = round((old_total * 0.5) + ((summary / maximum_summary) * 100)  * 0.5, 2)
         else:
             resume.test_total = TestTotal(
                 total=round(summary, 2),

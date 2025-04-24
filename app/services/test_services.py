@@ -24,9 +24,10 @@ class TestService:
             title=test_create.title,
             user_id=user.id,
             proffesion=test_create.proffesion,
+            is_Optional=test_create.isOptional,
         )
         db_test.questions = [
-            TestQuestion(question=ques.question, mark=ques.mark)
+            TestQuestion(question=ques.question, mark=ques.mark,source=ques.source)
             for ques in test_create.questions
         ]
         with self.db.no_autoflush:    

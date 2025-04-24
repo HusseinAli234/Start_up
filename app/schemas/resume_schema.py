@@ -16,6 +16,7 @@ class SkillType(str, Enum):
     HARD = "HARD"
     SOFT = "SOFT"
     TEST = "TEST"
+    FEEDBACK = "FEEDBACK"
 
 class SkillSchema(BaseModel):
     title: str

@@ -139,7 +139,7 @@ class ResumeService:
                 isImpact = False
                 skill_obj = Skill(
                 title=skill.title,
-                level=round(skill.result/4,2),
+                level=(round(skill.result/4,2) * 100),
                 justification="Отзыв работодателя",
                 type=TypeSkill.FEEDBACK,
                 resume_id=resume_id

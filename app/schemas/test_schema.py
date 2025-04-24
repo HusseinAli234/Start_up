@@ -14,6 +14,7 @@ class CreateTest(BaseModel):
     title: str
     proffesion:str
     isOptional:bool
+    methodology:str
     questions: List[Question]
 
 class ResponseTest(BaseModel):
@@ -21,6 +22,7 @@ class ResponseTest(BaseModel):
     title: str
     proffesion:str
     is_Optional:bool
+    methodology:str
     questions: List[Question]
     class Config:
         orm_mode = True  

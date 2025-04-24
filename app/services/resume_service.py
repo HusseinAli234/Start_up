@@ -166,7 +166,7 @@ class ResumeService:
                 resume.test_total.total = round((old_total * 0.5) + ((summary / maximum_summary) * 100)  * 0.5, 2)
             else:
                 resume.test_total = TestTotal(
-                    total=round(summary, 2),
+                    total=round((summary / maximum_summary)*100, 2),
                     resume_id=resume_id
                 )
 

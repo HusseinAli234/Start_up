@@ -109,6 +109,7 @@ class SocialTest(Base):
     title: Mapped[str] = mapped_column(String,index=True)
     is_Optional:Mapped[bool] = mapped_column(Boolean,index=True,nullable=True)
     proffesion:Mapped[str] = mapped_column(String,index=True,nullable=True)
+    methodology:Mapped[str] = mapped_column(String,index=True,nullable=True)
     questions: Mapped[list["TestQuestion"]] = relationship(
         "TestQuestion",
         back_populates="social_test", 

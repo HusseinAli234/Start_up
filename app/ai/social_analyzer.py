@@ -220,6 +220,30 @@ Text:
         print(f"Ошибка при извлечении ссылок через AI: {e}")
         return {}
 
+async def analyze_survey(metodology: str,result:float) -> str:
+    prompt = f"""
+
+METHODOLOGY: 
+{metodology}
+"""
+
+    model = "gemini-2.0-flash"
+    try:
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])] ,
+            config=types.GenerateContentConfig(
+                temperature=0.4,
+                response_mime_type="text/plain"
+            ),
+        )
+
+        # Извлекаем ответ
+        text = response.text
+        return text
+    except Exception as e:
+        print(f"Error in metodology analysis: {e}")
+        return "sorry don't have any analyze"  # fallback на дефолт
 
 async def analyze_proffesion(title: str, description: str, requirement: str) -> str:
     prompt = f"""

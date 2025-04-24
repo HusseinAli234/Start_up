@@ -147,9 +147,9 @@ class ResumeService:
                 skills.append(skill_obj)
             else:
                 score = round(((skill.result / skill.maximum) * 100),2)
-                summary += score
+                summary += skill.result
                 maximum_summary += skill.maximum
-                level = score  # или level = score, если одно и то же
+                level = score  
 
                 skill_obj = Skill(
                     title=skill.title,

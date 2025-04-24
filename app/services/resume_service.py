@@ -132,12 +132,14 @@ class ResumeService:
         skills_to_add_data = test_skills
         summary = 0
         maximum_summary = 0
+        isImpact = True
         skills = []
         for skill in skills_to_add_data:
             if skill.is_Optional:
+                isImpact = False
                 skill_obj = Skill(
                 title=skill.title,
-                level=0,
+                level=round(skill.result/4,2),
                 justification="Отзыв работодателя",
                 type=TypeSkill.FEEDBACK,
                 resume_id=resume_id
@@ -157,16 +159,16 @@ class ResumeService:
                     resume_id=resume_id
                 )
                 skills.append(skill_obj)
-
         # Обновляем или создаём TestTotal
-        if resume.test_total:
-            old_total = resume.test_total.total
-            resume.test_total.total = round((old_total * 0.5) + ((summary / maximum_summary) * 100)  * 0.5, 2)
-        else:
-            resume.test_total = TestTotal(
-                total=round(summary, 2),
-                resume_id=resume_id
-            )
+        if isImpact:
+            if resume.test_total:
+                old_total = resume.test_total.total
+                resume.test_total.total = round((old_total * 0.5) + ((summary / maximum_summary) * 100)  * 0.5, 2)
+            else:
+                resume.test_total = TestTotal(
+                    total=round(summary, 2),
+                    resume_id=resume_id
+                )
 
         self.db.add_all(skills)
         await self.db.commit()
@@ -220,6 +222,7 @@ class ResumeService:
         await self.db.delete(resume)
         await self.db.commit()
         return resume
+    
     
 
 

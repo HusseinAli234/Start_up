@@ -83,30 +83,32 @@ async def process_file(file: UploadFile, vacancy_id:int, user: User):
             logger.info(f"🚀 Starting background task for resume {vacancy_id}")
             cv_services = CVService(db)
             service = resume_service.ResumeService(db)
-            if not file.filename.endswith(".pdf"):
-                raise HTTPException(status_code=400, detail=f"File {file.filename} is not a valid PDF")
-
+            ALLOWED_EXTENSIONS = {".pdf", ".docx"}
+            ext = os.path.splitext(file.filename)[1].lower()
+            if ext not in ALLOWED_EXTENSIONS:
+                raise HTTPException(status_code=400, detail=f"File {file.filename} has unsupported extension: {ext}")
             file_path = os.path.join(UPLOAD_DIR, file.filename)
-
             async with aiofiles.open(file_path, "wb") as out_file:
                 while chunk := await file.read(1024 * 1024):
                     await out_file.write(chunk)
-
-            parsed_data = await cv_services.parse_pdf(file_path, vacancy_id)
+            if ext == ".pdf":
+                parsed_data = await cv_services.parse_pdf(file_path, vacancy_id)
+            elif ext == ".docx":
+                parsed_data = await cv_services.parse_docx(file_path, vacancy_id)
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported file extension: {ext}")
             if not parsed_data:
                 raise HTTPException(status_code=400, detail=f"Failed to parse PDF: {file.filename}")
-
             try:
                 resume_data = ResumeCreate(**parsed_data)
             except ValidationError as e:
                 raise HTTPException(status_code=400, detail=f"Data validation error in {file.filename}: {e.errors()}")
-
             db_resume = await service.create_resume(resume_data, vacancy_id=vacancy_id, user=user)
             vc_description = db_resume.job_postings[0].description
             vc_title = db_resume.job_postings[0].title
             vc_requirements = db_resume.job_postings[0].requirements
             logger.info(f"🚀 Starting background task for resume {vc_title}")
-            asyncio.create_task(background_task(db_resume.id,file_path,vc_description,vc_title,vc_requirements))
+            asyncio.create_task(background_task(db_resume.id,file_path,vc_description,vc_title,vc_requirements,ext))
             
 
             return {
@@ -121,14 +123,20 @@ async def process_file(file: UploadFile, vacancy_id:int, user: User):
             "error": str(e)
         }
 
-async def background_task(resume_id: int, file_path: str, description: str, title: str, requirements: str ):
+async def background_task(resume_id: int, file_path: str, description: str, title: str, requirements: str,ext:str):
     try:
         async with AsyncSessionLocal() as db:
             logger.info(f"🚀 Starting background task for resume {resume_id}")
             service = resume_service.ResumeService(db)
             cv_services = CVService(db)
             test_services = TestService(db)
-            text = await cv_services.parse_pdf_to_text(file_path)
+            if ext == ".pdf":
+                text = await cv_services.parse_pdf_to_text(file_path)
+            elif ext == ".docx":
+                text = await cv_services.parse_docx_to_text(file_path)
+            else:
+                logger.error(f"Unsupported file extension in background task: {ext}")
+                return
             profession = await analyze_proffesion(title,description,requirements)
             tests_id = await test_services.get_test_ids_by_proffesion(profession)
             employers_tests = await test_services.get_test_ids_by_proffesion(profession + "(employer)")

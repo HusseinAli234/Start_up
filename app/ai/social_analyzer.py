@@ -200,7 +200,6 @@ async def process_platform(platform, link, dataset_id_map, api_key, bucket_name)
             return f"{platform}: HTTP error - {str(e)}"
         except Exception as e:
             return f"{platform}: Unexpected error - {str(e)}"
-    print(summary)
     return summary
 
 

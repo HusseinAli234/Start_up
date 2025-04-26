@@ -53,6 +53,7 @@ class ExperienceSchema(BaseModel):
 class ResumeCreate(BaseModel):
     fullname: str
     location: str
+    cv_gcs_uri: Optional[str] = None
     experience: List[ExperienceSchema]
     education: List[EducationSchema]
     skills: List[SkillSchema]
@@ -63,6 +64,7 @@ class ResumeResponse(BaseModel):
     id: int
     fullname: str
     location: str
+    cv_gcs_uri: Optional[str] = None
     hard_total: Optional[HardTotal]
     soft_total: Optional[SoftTotal]
     test_total: Optional[TestTotal]

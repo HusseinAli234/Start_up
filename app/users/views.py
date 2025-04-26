@@ -10,6 +10,7 @@ from .models import User
 from .schemas import UserBase, UserLoginSChema
 from .config import security, config
 from jose import jwt, JWTError
+from sqlalchemy.orm import selectinload
 
 # Создаем контекст для хеширования паролей
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -162,7 +163,11 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     except JWTError:
         raise HTTPException(status_code=401, detail="Недействительный access токен")
 
-    stmt = select(User).where(User.id == int(uid))
+    stmt = select(User).where(User.id == int(uid)).options(
+        selectinload(User.user_resumes),
+        selectinload(User.user_job_postings),
+        selectinload(User.user_test)
+    )
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 

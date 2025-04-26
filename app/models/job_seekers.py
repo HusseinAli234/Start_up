@@ -20,6 +20,7 @@ class Resume(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     fullname: Mapped[str] = mapped_column(String, index=True)
     location: Mapped[str] = mapped_column(String, index=True)
+    cv_gcs_uri: Mapped[str] = mapped_column(String, nullable=True)
     hard_total: Mapped["HardTotal"] = relationship("HardTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     soft_total: Mapped["SoftTotal"] = relationship("SoftTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     test_total: Mapped["TestTotal"] = relationship("TestTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")

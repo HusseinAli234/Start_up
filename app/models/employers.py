@@ -14,7 +14,7 @@ class JobPosting(Base):
     description: Mapped[str] = mapped_column(String, index=True)
     location: Mapped[str] = mapped_column(String, index=True)
     requirements: Mapped[str] = mapped_column(String,index=True)
-    salary: Mapped[int] = mapped_column(Integer, index=True)
+    salary: Mapped[str] = mapped_column(String, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     user: Mapped["User"] = relationship("User", back_populates="user_job_postings",lazy="selectin")
 

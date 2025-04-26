@@ -1,4 +1,3 @@
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.job_seekers import Resume, Education, Experience, Skill, TypeSkill,HardTotal,TestTotal
@@ -19,10 +18,11 @@ class ResumeService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_resume(self, resume_data: ResumeCreate, user: User, vacancy_id: int | None = None) -> Resume:
+    async def create_resume(self, resume_data: ResumeCreate, user: User, vacancy_id: int | None = None, gcs_uri: str = None) -> Resume:
         db_resume = Resume(
             fullname=resume_data.fullname,
             location=resume_data.location,
+            cv_gcs_uri=gcs_uri or resume_data.cv_gcs_uri,  # Use provided GCS URI or from schema
         )
 
         if resume_data.hard_total:

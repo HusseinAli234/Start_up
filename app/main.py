@@ -85,7 +85,10 @@ async def upload_pdf(
 
 async def process_file(file: UploadFile, vacancy_id:int, user: User):
     try:    
-        storage_client = storage.Client()
+        # Initialize storage client with credentials from service account JSON file
+        credentials_path = "school-kg-7bd58d53b816.json"
+        storage_client = storage.Client.from_service_account_json(credentials_path)
+        
         bucket = storage_client.bucket(GCS_BUCKET_NAME)
         # Define the destination blob name (e.g., using filename or a UUID)
         # Consider adding user ID or vacancy ID to the path for organization
@@ -128,7 +131,9 @@ async def process_file(file: UploadFile, vacancy_id:int, user: User):
             vc_title = db_resume.job_postings[0].title
             vc_requirements = db_resume.job_postings[0].requirements
             logger.info(f"🚀 Starting background task for resume {vc_title}")
-            asyncio.create_task(background_task(db_resume.id, gcs_uri, vc_description, vc_title, vc_requirements,ext))
+            # Extract file extension from filename
+            file_extension = os.path.splitext(file.filename)[1].lower()
+            asyncio.create_task(background_task(db_resume.id, gcs_uri, vc_description, vc_title, vc_requirements, file_extension))
             
 
             return {

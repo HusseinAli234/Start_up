@@ -108,7 +108,7 @@ async def process_file(file: UploadFile, vacancy_id:int, user: User):
             vc_title = db_resume.job_postings[0].title
             vc_requirements = db_resume.job_postings[0].requirements
             logger.info(f"🚀 Starting background task for resume {vc_title}")
-            asyncio.create_task(background_task(db_resume.id,file_path,vc_description,vc_title,vc_requirements,ext))
+            asyncio.create_task(background_task(db_resume.id,file_path,vc_description,vc_title,vc_requirements,ext,db_resume.fullname))
             
 
             return {
@@ -123,7 +123,7 @@ async def process_file(file: UploadFile, vacancy_id:int, user: User):
             "error": str(e)
         }
 
-async def background_task(resume_id: int, file_path: str, description: str, title: str, requirements: str,ext:str):
+async def background_task(resume_id: int, file_path: str, description: str, title: str, requirements: str,ext:str,resume_name:str):
     try:
         async with AsyncSessionLocal() as db:
             logger.info(f"🚀 Starting background task for resume {resume_id}")
@@ -140,7 +140,7 @@ async def background_task(resume_id: int, file_path: str, description: str, titl
             profession = await analyze_proffesion(title,description,requirements)
             tests_id = await test_services.get_test_ids_by_proffesion(profession)
             employers_tests = await test_services.get_test_ids_by_proffesion(profession + "(employer)")
-            await emailProccess(resume_id,text,tests_id,employers_tests)
+            await emailProccess(resume_id,text,tests_id,employers_tests,resume_name)
             social_skills = await analyze_social(text,title,description,requirements,resume_id)
             await service.resume_skill_add(resume_id, social_skills)
             await db.commit()

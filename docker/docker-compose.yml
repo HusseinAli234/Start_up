@@ -39,8 +39,8 @@ services:
       - fastapi
     volumes:
       - ../nginx/nginx.conf:/etc/nginx/conf.d/default.conf
-      - static_volume:/tur/back_static/
-      - media_volume:/tur/back_media/
+      - static_volume:/app/back_static/
+      - media_volume:/app/back_media/
       - certbot_certs:/etc/letsencrypt
       - certbot_certs_data:/var/lib/letsencrypt
       - ./letsencrypt_webroot:/var/lib/letsencrypt/webroot

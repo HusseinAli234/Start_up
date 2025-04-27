@@ -3,6 +3,7 @@ import os
 from email.message import EmailMessage
 from app.ai.social_analyzer import extract_emails_from_resume
 from aiosmtplib import send
+from urllib.parse import quote
 from dotenv import load_dotenv
 
 load_dotenv()  # Подгружаем .env переменные
@@ -23,7 +24,7 @@ async def send_email(to_email: str, subject: str, content: str):
         password=os.getenv("SMTP_PASSWORD"),
     )
 
-async def emailProccess(resume_id: int, pdf_text: str, tests_id: int, employers_test_id: int):
+async def emailProccess(resume_id: int, pdf_text: str, tests_id: int, employers_test_id: int,resume_name:str):
     try:
         email_data = await extract_emails_from_resume(pdf_text)
     except Exception as e:
@@ -43,8 +44,9 @@ async def emailProccess(resume_id: int, pdf_text: str, tests_id: int, employers_
             test_id_str = ",".join(map(str, test_id))
         else:
             test_id_str = str(test_id)
+        safe_resume_name = quote(resume_name)
 
-        link = f"{frontend_base_url}?resume_id={resume_id}&tests_id={test_id_str}"
+        link = f"{frontend_base_url}?resume_id={resume_id}&tests_id={test_id_str}&resume_name={safe_resume_name}"
         return (
             "Ваше резюме было успешно обработано.\n"
             f"Пожалуйста, пройдите следующий тест: {link}\n\n"

@@ -136,15 +136,26 @@ class ResumeService:
         skills = []
         for skill in skills_to_add_data:
             if skill.is_Optional:
-                isImpact = False
-                skill_obj = Skill(
-                title=skill.title,
-                level=(round(skill.result/4,2) * 100),
-                justification="Отзыв работодателя",
-                type=TypeSkill.FEEDBACK,
-                resume_id=resume_id
-            )
-                skills.append(skill_obj)
+                if skill.maximum == 0 and skill.result == 0:
+                    isImpact = False
+                    skill_obj = Skill(
+                    title=skill.title,
+                    level=0,
+                    justification="Так охарактеризовал вас бывший работодатель",
+                    type=TypeSkill.FEEDBACK,
+                    resume_id=resume_id
+                    )
+                    skills.append(skill_obj)
+                else:    
+                    isImpact = False
+                    skill_obj = Skill(
+                    title=skill.title,
+                    level=(round(skill.result/skill.maximum,2) * 100),
+                    justification="Отзыв работодателя",
+                    type=TypeSkill.FEEDBACK,
+                    resume_id=resume_id
+                    )
+                    skills.append(skill_obj)
             else:
                 score = round(((skill.result / skill.maximum) * 100),2)
                 summary += skill.result

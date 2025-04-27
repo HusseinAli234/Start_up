@@ -35,7 +35,7 @@ async def emailProccess(resume_id: int, pdf_text: str, tests_id: int, employers_
     employer_emails = email_data.get("employer_emails", [])
 
     # Базовая ссылка на фронтенд
-    frontend_base_url = "https://husseinali234.github.io/sandbox-hr/test.html"
+    frontend_base_url = "https://sandbox.sdinis.org/test"
 
     # Шаблон письма
     def build_content(test_id):

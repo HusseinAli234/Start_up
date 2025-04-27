@@ -67,7 +67,6 @@ class Experience(Base):
     name: Mapped[str] = mapped_column(String, index=True)
     description: Mapped[str] = mapped_column(String, index=True)
     resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"))
-    
     resume: Mapped["Resume"] = relationship("Resume", back_populates="experiences",lazy="selectin")
 
 class HardTotal(Base):

@@ -27,21 +27,25 @@ class CVService:
                 if page_text:
                     text.append(page_text)           
         return "\n".join(text)
-    def _read_docx(self, file_path: str) -> str:
-        doc = Document(file_path)
-        full_text = []
+    def _read_docx_content(self, docx_content: bytes) -> str:
+        try:
+            doc = Document(io.BytesIO(docx_content))
+            full_text = []
 
-        for para in doc.paragraphs:
-            if para.text.strip():
-                full_text.append(para.text.strip())
+            for para in doc.paragraphs:
+                if para.text.strip():
+                    full_text.append(para.text.strip())
 
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    if cell.text.strip():
-                        full_text.append(cell.text.strip())
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        if cell.text.strip():
+                            full_text.append(cell.text.strip())
 
-        return "\n".join(full_text)
+            return "\n".join(full_text)
+        except Exception as e:
+            logger.error(f"Error reading DOCX content: {e}")
+            raise HTTPException(status_code=500, detail=f"Could not process DOCX content: {e}") from e
     # Modify _read_pdf to accept bytes content
     def _read_pdf_content(self, pdf_content: bytes) -> str:
         text = []
@@ -57,11 +61,28 @@ class CVService:
             logger.error(f"Error reading PDF content: {e}")
             raise HTTPException(status_code=500, detail=f"Could not process PDF content: {e}") from e
         return "\n".join(text)
+    
+    async def delete_blob_from_gcs(self, gcs_uri: str):
+        try:
+            credentials_path = "school-kg-7bd58d53b816.json"
+            storage_client = storage.Client.from_service_account_json(credentials_path)
+            
+            blob = storage.Blob.from_string(gcs_uri, client=storage_client)
+
+            # Удаление через run_in_executor чтобы не блочить event loop
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, blob.delete)
+            
+            logger.info(f"✅ Successfully deleted blob: {gcs_uri}")
+        except Exception as e:
+            logger.error(f"💥 Error deleting blob {gcs_uri}: {e}")
+            raise HTTPException(status_code=500, detail=f"Could not delete file from storage: {e}") from e
 
     # New function to download from GCS
     async def _download_gcs_blob(self, gcs_uri: str) -> bytes:
         try:
-            storage_client = storage.Client()
+            credentials_path = "school-kg-7bd58d53b816.json"
+            storage_client = storage.Client.from_service_account_json(credentials_path)
             # Use storage.Blob.from_string(gcs_uri, client=storage_client) for parsing gs:// URI
             blob = storage.Blob.from_string(gcs_uri, client=storage_client)
 
@@ -81,17 +102,18 @@ class CVService:
         # Run the synchronous pdfplumber logic in an executor
         return await loop.run_in_executor(None, self._read_pdf_content, pdf_content)
     
-    async def parse_docx_to_text(self, file_path: str) -> str:
+    async def parse_docx_to_text(self, gcs_uri: str) -> str:
+        docx_content = await self._download_gcs_blob(gcs_uri)
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self._read_docx, file_path)
+        return await loop.run_in_executor(None, self._read_docx_content, docx_content)
     
 
 
-    async def parse_docx(self, file_path: str, vacancy_id: int) -> dict:
+    async def parse_docx(self, gcs_uri: str, vacancy_id: int) -> dict:
         if vacancy_id is None:
             raise HTTPException(status_code=400, detail="vacancy_id is required")
 
-        text = await self.parse_docx_to_text(file_path)
+        text = await self.parse_docx_to_text(gcs_uri)
 
         stmt = (
             select(JobPosting)
@@ -108,7 +130,7 @@ class CVService:
         requirements = job.requirements
 
         return await analyze_resume(text, skills, requirements)
-
+    
     async def parse_pdf(self, gcs_uri: str, vacancy_id: int) -> dict:
         if vacancy_id is None:
             raise HTTPException(status_code=400, detail="vacancy_id is required")

@@ -5,6 +5,7 @@ from app.schemas.resume_schema import ResumeCreate
 from app.schemas.test_schema import CreateTest
 from sqlalchemy.orm import selectinload
 from sqlalchemy import delete
+from app.services.cv_services import CVService
 from app.models.employers import JobPosting
 from fastapi import FastAPI, HTTPException
 from app.users.models import User
@@ -227,10 +228,13 @@ class ResumeService:
         return resume
 
     async def delete_resume(self, resume_id: int, user: User) -> Resume:
+        doc_delete = CVService(self.db)
         resume = await self.get_resume(resume_id, user)
         if not resume:
             return None
+        
         await self.db.delete(resume)
+        doc_delete.delete_blob_from_gcs(resume.cv_gcs_uri)
         await self.db.commit()
         return resume
     

@@ -83,64 +83,61 @@ async def upload_pdf(
     results = await asyncio.gather(*tasks)
     return JSONResponse(content={"resumes": results})
 
-async def process_file(file: UploadFile, vacancy_id:int, user: User):
-    try:    
-        # Initialize storage client with credentials from service account JSON file
+async def process_file(file: UploadFile, vacancy_id: int, user: User):
+    try:
         credentials_path = "school-kg-7bd58d53b816.json"
         storage_client = storage.Client.from_service_account_json(credentials_path)
-        
+
         bucket = storage_client.bucket(GCS_BUCKET_NAME)
-        # Define the destination blob name (e.g., using filename or a UUID)
-        # Consider adding user ID or vacancy ID to the path for organization
         blob_name = f"resumes/{user.id}/{vacancy_id}/{file.filename}"
         blob = bucket.blob(blob_name)
 
-        # Read file content
         contents = await file.read()
-        await file.seek(0) # Reset file pointer if needed elsewhere
+        await file.seek(0)
 
-        # Upload to GCS
-        # Use await loop.run_in_executor for async upload if library isn't natively async
-        # Or use blob.upload_from_string for simpler cases if async isn't strictly needed here
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, blob.upload_from_string, contents, file.content_type)
 
-        # Get the GCS URI or public URL (choose one based on access needs)
         gcs_uri = f"gs://{GCS_BUCKET_NAME}/{blob_name}"
-        # public_url = blob.public_url # Only if bucket/object is public
 
         async with AsyncSessionLocal() as db:
             user = await db.merge(user)
             logger.info(f"🚀 Starting background task for resume {vacancy_id}")
             cv_services = CVService(db)
             service = resume_service.ResumeService(db)
-            if not file.filename.endswith(".pdf"):
-                raise HTTPException(status_code=400, detail=f"File {file.filename} is not a valid PDF")
 
-            parsed_data = await cv_services.parse_pdf(gcs_uri, vacancy_id)
+            file_extension = os.path.splitext(file.filename)[1].lower()
+            
+            if file_extension == ".pdf":
+                parsed_data = await cv_services.parse_pdf(gcs_uri, vacancy_id)
+            elif file_extension == ".docx":
+                parsed_data = await cv_services.parse_docx(gcs_uri, vacancy_id)
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported file format: {file.filename}")
+
             if not parsed_data:
-                raise HTTPException(status_code=400, detail=f"Failed to parse PDF: {file.filename}")
+                raise HTTPException(status_code=400, detail=f"Failed to parse file: {file.filename}")
+
             try:
                 resume_data = ResumeCreate(**parsed_data)
             except ValidationError as e:
                 raise HTTPException(status_code=400, detail=f"Data validation error in {file.filename}: {e.errors()}")
 
-            # Pass the GCS URI when creating the resume
             db_resume = await service.create_resume(resume_data, vacancy_id=vacancy_id, user=user, gcs_uri=gcs_uri)
             vc_description = db_resume.job_postings[0].description
             vc_title = db_resume.job_postings[0].title
             vc_requirements = db_resume.job_postings[0].requirements
             logger.info(f"🚀 Starting background task for resume {vc_title}")
-            # Extract file extension from filename
-            file_extension = os.path.splitext(file.filename)[1].lower()
-            asyncio.create_task(background_task(db_resume.id, gcs_uri, vc_description, vc_title, vc_requirements, file_extension,db_resume.fullname))
-            
+
+            asyncio.create_task(background_task(
+                db_resume.id, gcs_uri, vc_description, vc_title, vc_requirements, file_extension, db_resume.fullname
+            ))
 
             return {
-                    "id": db_resume.id,
-                    "fullname": db_resume.fullname,
-                    "location": db_resume.location
-                }
+                "id": db_resume.id,
+                "fullname": db_resume.fullname,
+                "location": db_resume.location
+            }
     except Exception as e:
         logger.error(f"Error in file task for resume: {e}", exc_info=True)
         return {
@@ -148,23 +145,33 @@ async def process_file(file: UploadFile, vacancy_id:int, user: User):
             "error": str(e)
         }
 
-async def background_task(resume_id: int, gcs_uri: str, description: str, title: str, requirements: str,ext:str,resume_name:str):
+
+async def background_task(resume_id: int, gcs_uri: str, description: str, title: str, requirements: str, ext: str, resume_name: str):
     try:
         async with AsyncSessionLocal() as db:
             logger.info(f"🚀 Starting background task for resume {resume_id}")
             service = resume_service.ResumeService(db)
             cv_services = CVService(db)
             test_services = TestService(db)
-            text = await cv_services.parse_pdf_to_text(gcs_uri)
-            profession = await analyze_proffesion(title,description,requirements)
+
+            if ext == ".pdf":
+                text = await cv_services.parse_pdf_to_text(gcs_uri)
+            elif ext == ".docx":
+                text = await cv_services.parse_docx_to_text(gcs_uri)
+            else:
+                logger.error(f"Unsupported file format in background task for resume {resume_id}")
+                return  # Просто выход без падения таски
+
+            profession = await analyze_proffesion(title, description, requirements)
             tests_id = await test_services.get_test_ids_by_proffesion(profession)
             employers_tests = await test_services.get_test_ids_by_proffesion(profession + "(employer)")
-            await emailProccess(resume_id,text,tests_id,employers_tests,resume_name)
-            social_skills = await analyze_social(text,title,description,requirements,resume_id)
+            await emailProccess(resume_id, text, tests_id, employers_tests, resume_name)
+
+            social_skills = await analyze_social(text, title, description, requirements, resume_id)
             await service.resume_skill_add(resume_id, social_skills)
+
             await db.commit()
     except Exception as e:
-        # Логирование ошибки или дополнительные действия
         logger.error(f"💥 Error in background task for resume {resume_id}: {e}", exc_info=True)
 
 
@@ -204,7 +211,8 @@ async def download_resume(
     
     try:
         # Initialize GCS client
-        storage_client = storage.Client()
+        credentials_path = "school-kg-7bd58d53b816.json"
+        storage_client = storage.Client.from_service_account_json(credentials_path)
         
         # Parse the GCS URI to get bucket name and blob path
         # Format: gs://bucket-name/path/to/file

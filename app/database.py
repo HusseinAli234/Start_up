@@ -41,6 +41,7 @@ print(f"Connecting to DB: {'Cloud Run Socket' if IS_CLOUD_RUN else DATABASE_URL.
 # --- SQLAlchemy Setup ---
 engine = create_async_engine(
     DATABASE_URL,
+    pool_pre_ping=True,
     echo=False, # Set echo=True for debugging SQL
     # Add pool settings recommended for Cloud SQL / Serverless
     pool_size=5,           # Start with a small pool size
@@ -52,6 +53,7 @@ engine = create_async_engine(
 # Factory for creating sessions
 AsyncSessionLocal = sessionmaker(
     engine, expire_on_commit=False, class_=AsyncSession
+    
 )
 
 # --- Dependency for FastAPI ---

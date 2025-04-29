@@ -91,3 +91,6 @@ venv/
 
 **/migrations/*
 !**/migrations/__init__.py
+
+/alembic/versions/*
+!./alembic/versions/__init__.py

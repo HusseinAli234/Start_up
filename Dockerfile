@@ -1,18 +1,23 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
 
-WORKDIR /tur
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8080
 
-COPY ./requirements.txt .
+# Set working directory
+WORKDIR /app
 
-RUN pip install -r requirements.txt
+# Copy dependency file and install
+COPY requirements.txt ./
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-COPY ./ .
- 
- 
-ENV PORT 8080
- 
- 
-EXPOSE 8080
- 
- 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+# Copy application source
+COPY . .
+
+# Expose the port for Cloud Run
+EXPOSE $PORT
+
+# Use shell form to allow environment variable expansion
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]

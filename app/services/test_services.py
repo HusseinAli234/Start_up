@@ -53,6 +53,7 @@ class TestService:
             )
         )
         return result.scalars().first()
+    
     async def delete_test(self, test_id: int) -> bool:
         test = await self.get_test(test_id)
         if not test:

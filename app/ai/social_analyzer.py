@@ -227,14 +227,16 @@ async def social_network_analyzer(text_to_extract):
 
 async def extract_social_media_links_ai(text: str) -> Dict[str, str]:
     prompt = f"""
-You are a smart AI that extracts social media profile links from text. Return a JSON dictionary with keys as platforms (facebook, instagram, linkedin, twitter) and values as the first URL found in the text for each platform (if any).
+You are a smart AI that extracts social media profile links from text. Return a JSON dictionary with keys as platforms (facebook, instagram, linkedin, x) and values as the first URL found in the text for each platform (if any).
 
 If a link is not found for a platform, do not include that key.
 
 Example format:
 {{
   "linkedin": "https://linkedin.com/in/example",
-  "x": "https://x.com/example"
+  "x": "https://x.com/example",
+  "instagram":"https://instagram.com/example"
+  "facebook":"https://facebook.com/example"
 }}
 
 Return a JSON dictionary where keys are lowercase platform names: "facebook", "x", "instagram", "linkedin".
@@ -349,7 +351,7 @@ Rules:
 Output format (JSON):
 {
   "employee_email": "example@gmail.com",
-  "employer_emails": ["hr@company.com", "lead@techcorp.com"]
+  "employer_emails": ["hr@company.com", "lead@techcorp.com" , "example@gmail.com"]
 }
 If nothing found:
 {

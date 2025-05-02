@@ -99,7 +99,7 @@ If total_tokens < 20, return:
 Important:
 – Use only the specified patterns and their semantic synonyms.
 – Do not infer beyond observed tokens.
-– All output keys and strings must be in English.
+– All output keys and strings must be in Russian.
 
 """        
 

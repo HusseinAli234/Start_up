@@ -141,7 +141,7 @@ class ResumeService:
                     isImpact = False
                     skill_obj = Skill(
                     title=skill.title,
-                    level=0,
+                    level=-1,
                     justification="Так охарактеризовал вас бывший работодатель",
                     type=TypeSkill.FEEDBACK,
                     resume_id=resume_id

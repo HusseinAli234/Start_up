@@ -33,6 +33,7 @@ from app.services.test_services import TestService
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from google.cloud import storage # Import GCS client
 import io
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +235,9 @@ async def download_resume(
         return StreamingResponse(
             io.BytesIO(content),
             media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={
+    "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"
+}
         )
     except Exception as e:
         logger.error(f"Error downloading resume PDF: {str(e)}", exc_info=True)

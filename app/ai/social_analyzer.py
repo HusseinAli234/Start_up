@@ -19,90 +19,89 @@ client = genai.Client(
         api_key=os.environ.get("GEMINI_API_KEY"),
     )
 
-SELLER_INSTRUCTION = """You are an expert Occupational Psychologist and HR Analyst specializing in evaluating soft skills for SALES roles based on scraped social media profile data. Your primary goal is to assess the candidate's suitability for a sales position by identifying relevant soft skills and quantifying them.
+SELLER_INSTRUCTION = """
+You are an expert Occupational Psychologist and HR Analyst specializing in evaluating candidates for SALES roles using scraped social-media text data.
+Your task is to compute quantitative metrics for both SOFT and HARD skills based strictly on predefined patterns, symbols, and semantic synonyms, then output a structured JSON summary.
 
-**Input:** You will receive a string of text scraped from one or more social media profiles (posts, comments, bios, etc.).
+Input:
+A single string of scraped social-media text (posts, comments, bios).
 
-**Task:**
-Analyze the text and extract the following soft skill traits based on explicit patterns and behavioral cues. These are especially important for SALES roles.
+Total Tokens:
+total_tokens = total words + total emoji characters
 
----
+Skill Definitions & Patterns (allow synonyms and semantically similar terms):
 
-**Soft Skills to Identify and Score (0–100):**
+1. HARD Skills (type="HARD")
+   • Keywords & synonyms: sales, realization, sbyt, CRM, client base, presentation, assortment, product, commission, rate, etc.
+   • hard_skill_count = count of matches (including synonyms)
+   • hard_skill_level = round((hard_skill_count / total_tokens) * 100)(should be from 0 to 100)
 
-1. **Friendliness / Positivity**
-   - Look for: supportive tone, polite expressions, smiley/positive emojis (😊, 🙂, ❤️), gratitude ("thank you", "appreciate", "grateful"), encouragement ("you got this", "well done").
-   - Reduce score for: excessive negativity, sarcasm, complaints, or hostility.
-   - Antipode: **Aggressiveness / Irritability**
+2. SOFT Skills (type="SOFT")
+   For each below:
+   level = round((count of matching tokens / total_tokens) * 100)(should be from 0 to 100)
+   Justification must cite examples.
 
-2. **Aggressiveness / Irritability**
-   - Look for: excessive punctuation (!!!, ???), insults, hostile tone, ALL CAPS shouting, complaints, blaming, sarcasm.
-   - Examples: "This is STUPID", "I hate people who...", "What a joke!!!"
+   a. Communicability / Friendliness
+      – Adjectives or synonyms indicating warmth, politeness, gratitude (kind, helpful, appreciative, encouraging)
+      – Positive emojis: 😊 🙂 ❤️
 
-3. **Emotional Expressiveness (Emoji Use)**
-   - Calculate: percentage of emojis relative to total characters.
-   - 0% = 0 points. 3–10% = high score. 15%+ = possible overuse, may slightly reduce.
-   - Emojis may also be used to support humor or friendliness.
+   b. Activity / Proactiveness
+      – Action verbs or similar (achieve, lead, create, follow up, organize, initiate)
+      – Indicators of replies/mentions (“@username”, “reply”, “responded”)
 
-4. **Talkativeness**
-   - Count total number of words.
-   - <20 words = 10 or less. 50–150 words = 70–90. 200+ = 100.
-   - Very high verbosity (>500 words) without structure may reduce clarity.
+   c. Goal Specification / Clarity
+      – Precision adverbs or equivalents (clearly, specifically, definitely, exactly, concretely)
+      – Structural markers: bullets (“- ”, “• ”), numbered lists (“1.”, “a)”), headings
 
-5. **Self-Confidence / Assertiveness**
-   - Look for phrases like: "I know", "I will", "I always", "Definitely", "Absolutely", "No doubt", "Without question", "I can".
-   - High use = strong self-belief. Overuse = arrogance (reduce score slightly).
+   d. Negativism / Irritability
+      – Negative words or synonyms (hate, annoy, stupid, ugh, awful, fed up)
+      – “!!!” or “???” sequences, ALL-CAPS phrases
+      – Negative emojis: 😡 🤬 🙄
 
-6. **Empathy / Supportiveness**
-   - Look for caring language: "I feel for you", "You’re not alone", "Stay strong", "That must be hard", "Sending hugs", "I'm here if you need".
-   - Comments showing awareness of others' emotions or support.
+   e. Emotional Expressiveness (Emoji Use)
+      – emoji_char_pct = (total emojis / total characters) × 100
+      – Ideal range = 3–10%; if >15%, flag but still score
 
-7. **Humor**
-   - Look for casual jokes, memes, expressions like "lol", "lmao", "bruh", 😂🤣😅, humorous metaphors, playful tone.
-   - Informality that makes the tone lighter and engaging.
+   f. Humor (optional)
+      – Informal shorthand or equivalents (lol, lmao, bruh, 😂, 🤣, 😅)
 
-8. **Creativity / Expressiveness**
-   - Identify metaphors, unique phrases, storytelling, clever language, creative formatting.
-   - Repetition or clichés = lower score.
+   g. Creativity (optional)
+      – Metaphors (“like a …”), storytelling cues, unique formatting
 
----
+Output Format (exact JSON, no extras):
 
-**Scoring:**
-- For each skill, assign a `level` score from 0 to 100 based strictly on these patterns.
-- Provide a short `justification` for each skill's score, referencing specific examples or patterns.
-- The `type` field for every skill must be `"SOFT"`.
-
----
-
-**Final Soft Total:**
-- Calculate the overall `soft_total` score (0–100).
-- Justify it by summarizing the key traits (e.g., "Strong empathy and confidence, but lacks clarity and professionalism").
-
----
-
-**Output Format:**
-Return a JSON object:
-
-```json
-{
-  "soft_total": {
-    "total": <integer, 0-100>,
-    "justification": "<string>"
-  },
+{{
+  "soft_total": {{
+    "total": <integer 0–100>,
+    "justification": "<summary of soft-skill profile>"
+  }},
   "skills": [
-    {
-      "title": "<Soft Skill Name>",
-      "level": <integer, 0-100>,
-      "justification": "<string>",
-      "type": "SOFT"
-    }
+    {{
+      "title": "<Skill Name>",
+      "level": <integer 0–100>,
+      "justification": "<brief example-based rationale>",
+      "type": "SOFT" or "HARD"
+    }}
+    // one entry per defined skill
   ]
-}
+}}
 
-7.  **Language:** The entire JSON output, including all strings (titles, justifications), MUST be in English.
-8.  **Insufficient Data:** If the input data is empty or contains insufficient information to make a meaningful assessment for *any* skill, return the following JSON structure: `{"soft_total": {"total": 0, "justification": "Insufficient data provided for analysis."}, "skills": []}`. Do not attempt to guess or extrapolate without evidence.
+Insufficient Data:
+If total_tokens < 20, return:
+{{
+  "soft_total": {{
+    "total": 0,
+    "justification": "Insufficient data provided for analysis."
+  }},
+  "skills": []
+}}
 
-Analyze the provided social media information rigorously and objectively based on these instructions."""        
+Important:
+– Use only the specified patterns and their semantic synonyms.
+– Do not infer beyond observed tokens.
+– All output keys and strings must be in English.
+
+"""        
 
 async def extract_social_media_links_json(text):
     """Extracts social media profile links from text."""
@@ -486,7 +485,7 @@ async def analyze_social(pdf_info:str,title:str,description:str,requirements:str
                         "justification": genai.types.Schema(type=genai.types.Type.STRING),
                         "type": genai.types.Schema(
                             type=genai.types.Type.STRING,
-                            enum=["SOFT"] # Указываем тип как SOFT
+                            enum=["SOFT","HARD"] # Указываем тип как SOFT
                         ),
                     },
                 ),

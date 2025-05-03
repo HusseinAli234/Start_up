@@ -125,10 +125,11 @@ async def extract_social_media_links_json(text):
 
 
 
-async def process_platform(platform, link, dataset_id_map, api_key, bucket_name):
+async def process_platform(platform, link, dataset_id_map, api_key, bucket_name, max_retries=3):
     summary = ""
     if platform not in dataset_id_map:
         return f"  -> Warning: No dataset_id configured for platform '{platform}'. Skipping.\n"
+    
     current_dataset_id = dataset_id_map[platform]
     input_data = [{"url": link}]
     trigger_payload = {
@@ -146,60 +147,67 @@ async def process_platform(platform, link, dataset_id_map, api_key, bucket_name)
         "Content-Type": "application/json",
     }
 
-    async with httpx.AsyncClient() as client:
-        try:
-            # Step 1: Trigger data extraction
-            trigger_response = await client.post(
-                "https://api.brightdata.com/datasets/v3/trigger",
-                headers=headers,
-                params={"dataset_id": current_dataset_id, "include_errors": "true"},
-                json=trigger_payload
-            )
-            trigger_response.raise_for_status()
-            snapshot_id = trigger_response.json().get("snapshot_id")
-
-            if not snapshot_id:
-                return f"{platform}: Failed to get snapshot_id"
-
-            # Step 2: Polling until status is ready
-            while True:
-                progress_response = await client.get(
-                    f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}",
-                    headers={"Authorization": f"Bearer {api_key}"}
+    for attempt in range(1, max_retries + 1):
+        async with httpx.AsyncClient() as client:
+            try:
+                print(f"     Attempt {attempt} for {platform}")
+                # Step 1: Trigger
+                trigger_response = await client.post(
+                    "https://api.brightdata.com/datasets/v3/trigger",
+                    headers=headers,
+                    params={"dataset_id": current_dataset_id, "include_errors": "true"},
+                    json=trigger_payload
                 )
-                progress_response.raise_for_status()
-                status = progress_response.json().get("status", "unknown")
+                trigger_response.raise_for_status()
+                snapshot_id = trigger_response.json().get("snapshot_id")
 
-                if status == "ready":
-                    result_response = await client.get(
-                        f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
-                        headers={"Authorization": f"Bearer {api_key}"},
-                        params={"format": "json", "batch_size": 1500}
+                if not snapshot_id:
+                    raise ValueError("Missing snapshot_id in trigger response")
+
+                # Step 2: Polling
+                while True:
+                    progress_response = await client.get(
+                        f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}",
+                        headers={"Authorization": f"Bearer {api_key}"}
                     )
-                    result_response.raise_for_status()
-                    json_data = result_response.json()
+                    progress_response.raise_for_status()
+                    status = progress_response.json().get("status", "unknown")
 
-                    if not json_data:
-                        return f"{platform}: Empty result."
+                    if status == "ready":
+                        result_response = await client.get(
+                            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                            headers={"Authorization": f"Bearer {api_key}"},
+                            params={"format": "json", "batch_size": 1500}
+                        )
+                        result_response.raise_for_status()
+                        json_data = result_response.json()
 
-                    cleaned_data = {
-                        key: (value[:3] if isinstance(value, list) and value else value)
-                        for key, value in json_data[0].items()
-                    }
-                    summary += f"\"{platform}\": " + json.dumps(cleaned_data, ensure_ascii=False, indent=4) + "\n"
-                    print(f"     Finished for {platform}")
-                    break
-                elif status in ["failed", "unknown"]:
-                    return f"{platform}: Failed or unknown status"
+                        if not json_data:
+                            return f"{platform}: Empty result."
+
+                        cleaned_data = {
+                            key: (value[:3] if isinstance(value, list) and value else value)
+                            for key, value in json_data[0].items()
+                        }
+                        summary += f"\"{platform}\": " + json.dumps(cleaned_data, ensure_ascii=False, indent=4) + "\n"
+                        print(f"     Finished for {platform}")
+                        return summary
+
+                    elif status in ["failed", "unknown"]:
+                        raise RuntimeError(f"Status for {platform} is '{status}'")
+
+                    else:
+                        print(f"     Waiting on {platform}...")
+                        await asyncio.sleep(5)
+
+            except Exception as e:
+                print(f"     [Attempt {attempt}] Error for {platform}: {e}")
+                if attempt < max_retries:
+                    await asyncio.sleep(3)  # маленький бэкофф
+                    continue
                 else:
-                    print(f"     Waiting on {platform}...")
-                    await asyncio.sleep(5)
+                    return f"{platform}: Failed after {max_retries} attempts. Last error: {str(e)}"
 
-        except httpx.HTTPError as e:
-            return f"{platform}: HTTP error - {str(e)}"
-        except Exception as e:
-            return f"{platform}: Unexpected error - {str(e)}"
-    return summary
 
 
 async def social_network_analyzer(text_to_extract):

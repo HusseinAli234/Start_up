@@ -1,11 +1,14 @@
 # main.py
 import os
+from dotenv import load_dotenv
+load_dotenv(override=True)
 import aiofiles
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import engine, get_db
 from app.models.base import Base
+from app.models.employers import JobPosting
 from app.schemas.resume_schema import ResumeCreate
 from app.schemas.test_schema import CreateTest
 from app.services import resume_service,vacancy_service,test_services
@@ -19,6 +22,8 @@ from app.schemas.vacancy_schema import VacancyCreate
 from starlette.middleware.cors import CORSMiddleware
 from app.ai.social_analyzer import analyze_social,analyze_proffesion
 from  app.services.cv_services import CVService
+from  app.services.vacancy_service import JobPostingService
+
 import asyncio
 from .users import views as users_router
 from app.routers import test as test_router
@@ -34,6 +39,7 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from google.cloud import storage # Import GCS client
 import io
 from urllib.parse import quote
+
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +112,8 @@ async def process_file(file: UploadFile, vacancy_id: int, user: User):
             logger.info(f"🚀 Starting background task for resume {vacancy_id}")
             cv_services = CVService(db)
             service = resume_service.ResumeService(db)
-
+            vacancy_service = JobPostingService(db)
+            vacancy = await vacancy_service.get_job_posting(vacancy_id,user)
             file_extension = os.path.splitext(file.filename)[1].lower()
             
             if file_extension == ".pdf":
@@ -131,7 +138,7 @@ async def process_file(file: UploadFile, vacancy_id: int, user: User):
             logger.info(f"🚀 Starting background task for resume {vc_title}")
 
             asyncio.create_task(background_task(
-                db_resume.id, gcs_uri, vc_description, vc_title, vc_requirements, file_extension, db_resume.fullname
+                db_resume.id, gcs_uri, vc_description, vc_title, vc_requirements, file_extension, db_resume.fullname,vacancy
             ))
 
             return {
@@ -147,7 +154,7 @@ async def process_file(file: UploadFile, vacancy_id: int, user: User):
         }
 
 
-async def background_task(resume_id: int, gcs_uri: str, description: str, title: str, requirements: str, ext: str, resume_name: str):
+async def background_task(resume_id: int, gcs_uri: str, description: str, title: str, requirements: str, ext: str, resume_name: str,vacancy:JobPosting):
     try:
         async with AsyncSessionLocal() as db:
             logger.info(f"🚀 Starting background task for resume {resume_id}")
@@ -166,7 +173,7 @@ async def background_task(resume_id: int, gcs_uri: str, description: str, title:
             profession = await analyze_proffesion(title, description, requirements)
             tests_id = await test_services.get_test_ids_by_proffesion(profession)
             employers_tests = await test_services.get_test_ids_by_proffesion(profession + "(employer)")
-            await emailProccess(resume_id, text, tests_id, employers_tests, resume_name)
+            await emailProccess(resume_id, text, tests_id, employers_tests, resume_name,vacancy.user.name,vacancy.title)
 
             social_skills = await analyze_social(text, title, description, requirements, resume_id)
             await service.resume_skill_add(resume_id, social_skills)

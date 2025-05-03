@@ -414,7 +414,7 @@ Important rules:
     )
 
     generate_content_config = types.GenerateContentConfig(
-        temperature=0.3,
+        temperature=0.1,
         response_mime_type="application/json",
         response_schema=response_schema,
         system_instruction=[

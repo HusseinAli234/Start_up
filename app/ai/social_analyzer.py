@@ -73,13 +73,13 @@ Output Format (exact JSON, no extras):
 {{
   "soft_total": {{
     "total": <integer 0–100>,
-    "justification": "<summary of soft-skill profile>"
+    "justification": "<summary of soft-skill profile in Russian>"
   }},
   "skills": [
     {{
       "title": "<Skill Name>",
       "level": <integer 0–100>,
-      "justification": "<brief example-based rationale>",
+      "justification": "<brief example-based rationale in Russian>",
       "type": "SOFT" or "HARD"
     }}
     // one entry per defined skill
@@ -91,7 +91,7 @@ If total_tokens < 20, return:
 {{
   "soft_total": {{
     "total": 0,
-    "justification": "Insufficient data provided for analysis."
+    "justification": "Insufficient data provided for analysis in Russian"
   }},
   "skills": []
 }}

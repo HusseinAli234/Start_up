@@ -38,8 +38,11 @@ Skill Definitions & Patterns (allow synonyms and semantically similar terms):
 
 2. SOFT Skills (type="SOFT")
    For each below:
-   level = round((count of matching tokens / total_tokens) * 100)(should be from 0 to 100)
-   Justification must cite examples.
+   raw_pct = (count / total_tokens) * 100
+   benchmark = {{Communicability:20, Proactiveness:15, Clarity:10, Irritability:10,Emotional Expressiveness:5,Humor:10,Creativity:15}}[skill]
+   weighted_pct = min(100, raw_pct / benchmark * 100)
+   level = max(weighted_pct, floor_threshold)  
+   Justification must cite examples in Russian.
 
    a. Communicability / Friendliness
       – Adjectives or synonyms indicating warmth, politeness, gratitude (kind, helpful, appreciative, encouraging)

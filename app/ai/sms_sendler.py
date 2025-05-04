@@ -40,9 +40,9 @@ def build_candidate_html(resume_id, test_id, resume_name, company_name, position
                 <td>
                     <h2 style="color:#333;">Здравствуйте, {resume_name}!</h2>
                     <p>Вы подавали заявку на позицию <strong>{position}</strong> в компанию <strong>{company_name}</strong>.</p>
-                    <p>Пожалуйста, пройдите тест по ссылке ниже:</p>
+                    <p>Пожалуйста, пройдите опросник по ссылке ниже:</p>
                     <p style="text-align:center;margin:30px 0;">
-                        <a href="{link}" style="background:#007bff;color:#fff;padding:12px 20px;border-radius:5px;text-decoration:none;">Пройти тест</a>
+                        <a href="{link}" style="background:#007bff;color:#fff;padding:12px 20px;border-radius:5px;text-decoration:none;">Пройти Опросник</a>
                     </p>
                     <p>Если кнопка не работает, перейдите по ссылке вручную:</p>
                     <p><a href="{link}" style="color:#007bff;">{link}</a></p>
@@ -74,7 +74,7 @@ def build_employer_html(resume_id, test_id, resume_name):
                     </p>
                     <p>Если кнопка не работает, перейдите по ссылке вручную:</p>
                     <p><a href="{link}" style="color:#28a745;">{link}</a></p>
-                    <p>С уважением,<br>Система <strong>SANDBOX</strong></p>
+                    <p>С уважением,<br>Команда <strong>SANDBOX</strong></p>
                 </td>
             </tr>
         </table>
@@ -100,7 +100,7 @@ def build_employer_text(resume_id, test_id, resume_name):
         f"Уважаемый(ая) бывший работодатель,\n\n"
         f"Просим вас оценить кандидата {resume_name}, который указал вас как бывшего работодателя.\n"
         f"Ссылка для прохождения оценки:\n{link}\n\n"
-        f"С уважением,\nСистема SANDBOX"
+        f"С уважением,\nКоманда SANDBOX"
     )
 
 # Основная логика рассылки писем

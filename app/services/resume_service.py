@@ -114,7 +114,7 @@ class ResumeService:
                 title=skill["title"],
                 level=skill["level"],
                 justification=skill["justification"],
-                type=TypeSkill.SOFT,
+                type=skill["type"],
                 resume_id=resume_id
             )
             skills.append(skill_obj)

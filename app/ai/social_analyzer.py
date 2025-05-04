@@ -453,7 +453,7 @@ async def analyze_social(pdf_info:str,title:str,description:str,requirements:str
     }
 
     chosen_instruction = system_instructions.get(profession, system_instructions["salesman"])
-    model = "gemini-2.0-flash"
+    model = "gemini-2.5-flash-preview-04-17"
     contents = [
         types.Content(
             role="user",
@@ -477,11 +477,11 @@ async def analyze_social(pdf_info:str,title:str,description:str,requirements:str
                 properties={
                     "total": genai.types.Schema(
                         type=genai.types.Type.INTEGER,
-                        description="Aggregate score (0-100) based ONLY on evaluated soft skills relevant to sales."
+                        description="Aggregate score (0-100) based ONLY on evaluated soft skills relevant to sales. SHOUD BE IN RUSSIAN"
                     ),
                     "justification": genai.types.Schema(
                         type=genai.types.Type.STRING,
-                        description="Brief explanation for the aggregate soft_total score."
+                        description="Brief explanation for the aggregate soft_total score.SHOULD BE IN RUSSIAN"
                     ),
                 },
                 description="Overall assessment based purely on the relevant soft skills identified."
@@ -497,7 +497,7 @@ async def analyze_social(pdf_info:str,title:str,description:str,requirements:str
                         "title": genai.types.Schema(type=genai.types.Type.STRING),
                         "level": genai.types.Schema(
                             type=genai.types.Type.INTEGER,
-                            description="Proficiency score (0-100) based on social media evidence."
+                            description="Proficiency score (0-100) based on social media evidence. SHOULD BE IN RUSSIAN"
                         ),
                         "justification": genai.types.Schema(type=genai.types.Type.STRING),
                         "type": genai.types.Schema(

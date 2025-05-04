@@ -33,16 +33,22 @@ Skill Definitions & Patterns (allow synonyms and semantically similar terms):
 
 1. HARD Skills (type="HARD")
    • Keywords & synonyms: sales, realization, sbyt, CRM, client base, presentation, assortment, product, commission, rate, etc.
-   • hard_skill_count = count of matches (including synonyms)
-   • hard_skill_level = round((hard_skill_count / total_tokens) * 100)(should be from 0 to 100)
+   • hard_skill_count = sum of weighted matches (each match weight = 1)
+   • Use Laplace smoothing with α = 5:
+       hard_skill_level = round(((hard_skill_count + α) / (total_tokens + α)) * 100)
+     (Ensures non-zero even when hard_skill_count is small)
 
 2. SOFT Skills (type="SOFT")
-   For each below:
-   raw_pct = (count / total_tokens) * 100
-   benchmark = {{Communicability:20, Proactiveness:15, Clarity:10, Irritability:10,Emotional Expressiveness:5,Humor:10,Creativity:15}}[skill]
-   weighted_pct = min(100, raw_pct / benchmark * 100)
-   level = max(weighted_pct, floor_threshold)  
-   Justification must cite examples in Russian.
+   For each dimension below:
+     a. Count only weighted triggers (strong markers = 2 points, weak markers = 1 point)
+     b. raw_pct = (weighted_count / total_tokens) * 100
+     c. benchmark_pct = {{Communicability: 20, Proactiveness: 15, Clarity: 10, Negativism: 10, Expressiveness: 8,Emotional Expressiveness:10,Humor:15,Creativity:15}}[skill]
+     d. scaled_pct = min(100, raw_pct / benchmark_pct * 100)
+     e. Apply minimum floor_threshold = 5%:
+          level = max(scaled_pct, floor_threshold)
+     f. (Optional nonlinear boost—e.g. sqrt):
+          level = round( sqrt(level / 100) * 100 )
+
 
    a. Communicability / Friendliness
       – Adjectives or synonyms indicating warmth, politeness, gratitude (kind, helpful, appreciative, encouraging)
@@ -221,7 +227,7 @@ async def social_network_analyzer(text_to_extract):
         "twitter": "gd_lwxmeb2u1cniijd7t4",
     }
 
-    BRIGHTDATA_API_KEY = "2d50c51f16939d3298d0d98530b722e4f31d2ff78a7784923d84c71298e7924f"
+    BRIGHTDATA_API_KEY = "d5e4ddcbbaa4f2f99b61fc66fe3816d2f25a4a0f4cc2ee6223effb59b23fe649"
     S3_BUCKET_NAME = "start_up"
 
     extracted_links = await extract_social_media_links_ai(text_to_extract)

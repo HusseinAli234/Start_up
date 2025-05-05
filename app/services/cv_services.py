@@ -12,9 +12,9 @@ import logging
 from app.models.employers import JobPosting
 from app.schemas.vacancy_schema import SkillSchema
 from app.ai.analyzer import analyze_resume,analyze_resume_chatgpt
+from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
-
 class CVService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -74,6 +74,26 @@ class CVService:
             await loop.run_in_executor(None, blob.delete)
             
             logger.info(f"✅ Successfully deleted blob: {gcs_uri}")
+            return JSONResponse(status_code=200, content={"message": "File successfully deleted."})
+
+        except Exception as e:
+            logger.error(f"💥 Error deleting blob {gcs_uri}: {e}")
+            raise HTTPException(status_code=500, detail=f"Could not delete file from storage: {e}") from e
+    async def delete_report_from_gcs(self, gcs_uri: str):
+        try:
+            
+            credentials_path = "school-kg-7bd58d53b816.json"
+            storage_client = storage.Client.from_service_account_json(credentials_path)
+            
+            blob = storage.Blob.from_string(gcs_uri, client=storage_client)
+
+            # Удаление через run_in_executor чтобы не блочить event loop
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, blob.delete)
+            
+            logger.info(f"✅ Successfully deleted blob: {gcs_uri}")
+            return JSONResponse(status_code=200, content={"message": "File successfully deleted."})
+
         except Exception as e:
             logger.error(f"💥 Error deleting blob {gcs_uri}: {e}")
             raise HTTPException(status_code=500, detail=f"Could not delete file from storage: {e}") from e

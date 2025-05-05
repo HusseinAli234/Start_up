@@ -8,6 +8,7 @@ from app.users.models import User
 from app.models.employers import VacancySkill, JobPosting  
 from app.schemas.vacancy_schema import VacancyCreate
 from app.models.job_seekers import Resume
+from app.services.resume_service import ResumeService
 
 def normalize(skill: str) -> str:
     """
@@ -120,6 +121,7 @@ class JobPostingService:
         return [{"resume": r.fullname, "avg_skill_score": score} for r, score in sorted_resumes]
     async def delete_job_posting(self, job_id: int, user: User) -> bool:
         job = await self.get_job_posting(job_id, user)
+        resume_service = ResumeService(self.db)
         if not job:
             return False
         result = await self.db.execute(
@@ -129,7 +131,7 @@ class JobPostingService:
 
         # ❌ Удалить каждое резюме
         for resume in resumes:
-            await self.db.delete(resume)
+            await resume_service.delete_resume(resume.id, resume.user, commit=False)
 
         # ❌ Удаляем саму вакансию
         await self.db.delete(job)

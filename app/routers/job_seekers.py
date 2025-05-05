@@ -1,10 +1,12 @@
 # resume_routes.py
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.job_seekers import Resume
 from app.database import get_db
 from app.services.resume_service import ResumeService
+from app.services.cv_services import CVService
 from app.schemas.resume_schema import ResumeResponse
 from typing import List
 from sqlalchemy.orm import selectinload
@@ -12,7 +14,6 @@ from app.database import AsyncSessionLocal
 from app.users.config import security, config, safe_get_current_subject
 from app.users.models import User
 from sqlalchemy import desc
-
 
 router = APIRouter(prefix="/resumes", tags=["Resumes"])
 
@@ -59,5 +60,13 @@ async def delete_resume(resume_id: int, db: AsyncSession = Depends(get_db), user
     
     return {"message": "Resume deleted successfully"}
 
+@router.delete("/report/{resume_id}")
+async def delete_resume_report(resume_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+    service = CVService(db)
+  
 
+    if not await service.delete_report_from_gcs(resume_id,user):
+        raise HTTPException(status_code=404, detail="Resume Report not found")
+    
+    return {"message": "Resume report deleted successfully"}
 

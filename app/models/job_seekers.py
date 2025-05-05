@@ -24,7 +24,7 @@ class Resume(Base):
     hard_total: Mapped["HardTotal"] = relationship("HardTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     soft_total: Mapped["SoftTotal"] = relationship("SoftTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     test_total: Mapped["TestTotal"] = relationship("TestTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")
-
+    feedback_total: Mapped["FeedbackTotal"] = relationship("FeedbackTotal", back_populates="resume", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
     
     skills: Mapped[list["Skill"]] = relationship(
@@ -49,7 +49,6 @@ class Resume(Base):
     )
    
     user: Mapped["User"] = relationship("User", back_populates="user_resumes",lazy="selectin")
-
 
 
 class Education(Base):
@@ -89,8 +88,17 @@ class TestTotal(Base):
     __tablename__ = "test_skills"
     id: Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True)
     total: Mapped[float] = mapped_column(Float,index=True)
+    justification: Mapped[str] = mapped_column(String,nullable=True,index=True,default="Нет данных")
     resume_id: Mapped[int] = mapped_column(Integer, ForeignKey("resumes.id"), unique=True)
     resume: Mapped["Resume"] = relationship("Resume", back_populates="test_total", lazy="selectin")
+
+class FeedbackTotal(Base):
+    __tablename__ = "feedback_skills"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    total: Mapped[float] = mapped_column(Float, default=0) 
+    justification: Mapped[str] = mapped_column(String, nullable=True, index=True, default="Нет данных")
+    resume_id: Mapped[int] = mapped_column(ForeignKey("resumes.id"), unique=True)
+    resume: Mapped["Resume"] = relationship("Resume", back_populates="feedback_total", lazy="selectin")
 
 
 class Skill(Base):

@@ -23,7 +23,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.ai.social_analyzer import analyze_social,analyze_proffesion
 from  app.services.cv_services import CVService
 from  app.services.vacancy_service import JobPostingService
-
+from app.ai.gisto import generate_pdf_for_single_resume,upload_pdf_to_gcs
 import asyncio
 from .users import views as users_router
 from app.routers import test as test_router
@@ -249,3 +249,45 @@ async def download_resume(
     except Exception as e:
         logger.error(f"Error downloading resume PDF: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error retrieving PDF: {str(e)}")
+    
+@app.get("/download_analysis/{resume_id}")
+async def download_analysis(resume_id: int, user: User = Depends(safe_get_current_subject),db: AsyncSession = Depends(get_db)):
+    try:
+        bucket_name = os.getenv("GCS_BUCKET_NAME", "your-default-bucket-name")
+        credentials_path = "school-kg-7bd58d53b816.json"
+        blob_path = f"analysis_reports/{user.id}/{resume_id}/report.pdf"
+        resume_svc = resume_service.ResumeService(db)
+        resume = await resume_svc.get_resume(resume_id, user)
+
+        # Подключение к GCS
+        client = storage.Client.from_service_account_json(credentials_path)
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(blob_path)
+
+        # Если PDF уже существует — скачиваем и отдаём
+        if blob.exists():
+            pdf_bytes = blob.download_as_bytes()
+            return StreamingResponse(
+                io.BytesIO(pdf_bytes),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=report_resume_{resume_id}.pdf"}
+            )
+
+        # Иначе — генерируем, загружаем и отдаём
+        pdf_path = await generate_pdf_for_single_resume(resume)
+        gcs_uri = await upload_pdf_to_gcs(pdf_path, blob_path)
+
+        with open(pdf_path, "rb") as f:
+            content = f.read()
+
+        os.remove(pdf_path)
+
+        return StreamingResponse(
+            io.BytesIO(content),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=report_resume_{resume_id}.pdf"}
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка генерации/загрузки анализа PDF: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Не удалось создать или получить отчёт.")

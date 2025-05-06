@@ -12,6 +12,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from datetime import datetime
+from reportlab.platypus import ListFlowable, ListItem
 
 from pathlib import Path
 
@@ -22,7 +23,7 @@ font_path = BASE_DIR / "util/arialmt.ttf"
 pdfmetrics.registerFont(TTFont('Arial', str(font_path)))
 
 def _create_resume_analysis_chart(resume, filename: str):
-    labels = ["Анализ CV", "Анализ Соц-сетей", "Анализ Опросников","Отзыв бывших работодателей"]
+    labels = ["Анализ CV", "Анализ Соц-сетей", "Итоги Опросников","Отзыв бывших работодателей"]
     values = [
         resume.hard_total.total if resume.hard_total else 0,
         resume.soft_total.total if resume.soft_total else 0,
@@ -127,17 +128,40 @@ def _generate_resume_pdf(pdf_path: str, chart_path: str, resume):
     Story.append(Spacer(1, 12))
 
     # Пояснения по каждой категории
-    categories = ["Анализ CV", "Анализ Социальных сетей", "Результаты опросников","Отзывы бывших работодалей"]
+    categories = [
+        "-Анализ CV", 
+        "-Анализ Социальных сетей", 
+        "-Результаты опросника на выявление личностных качеств", 
+        "-Отзывы бывших работодателей"
+    ]
+
     justifications = [
         resume.hard_total.justification if resume.hard_total else "Нет данных",
         resume.soft_total.justification if resume.soft_total else "Нет данных",
         resume.test_total.justification if resume.test_total else "Нет данных",
-        resume.feedback_total.justification if resume.test_total else "Нет данных"
+        resume.feedback_total.justification if resume.feedback_total else "Нет данных"
     ]
 
-    for cat, text in zip(categories, justifications):
+    # Выделение скиллов с уровнем -1
+    negative_skills = [s.title for s in getattr(resume, "skills", []) if s.level == -1]
+
+    # Подготовим форматированный список, если скиллы есть
+    skills_list_flowable = None
+    if negative_skills:
+        skills_list = [ListItem(Paragraph(skill, styles['Text'])) for skill in negative_skills]
+        skills_list_flowable = ListFlowable(
+            skills_list,
+            bulletType='bullet',
+            leftIndent=20
+        )
+
+    for i, (cat, justification) in enumerate(zip(categories, justifications)):
         Story.append(Paragraph(cat + ":", styles['SectionTitle']))
-        Story.append(Paragraph(text.replace("\n", "<br/>"), styles['Text']))
+        Story.append(Paragraph(justification.replace("\n", "<br/>"), styles['Text']))
+        if i == 3 and skills_list_flowable:  # Добавляем список только к последнему разделу
+            Story.append(Spacer(1, 6))
+            Story.append(Paragraph("Характеристики от бывших работодателей:", styles['Text']))
+            Story.append(skills_list_flowable)
         Story.append(Spacer(1, 10))
 
     Story.append(HRFlowable(width="100%", thickness=1, color="#cccccc"))

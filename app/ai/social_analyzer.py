@@ -227,7 +227,7 @@ async def social_network_analyzer(text_to_extract):
         "twitter": "gd_lwxmeb2u1cniijd7t4",
     }
 
-    BRIGHTDATA_API_KEY = "d5e4ddcbbaa4f2f99b61fc66fe3816d2f25a4a0f4cc2ee6223effb59b23fe649"
+    BRIGHTDATA_API_KEY = "259e983b7ec9d9c06f559edf8eff81cf9a3c7cd73536f42617542dcbecde00f2"
     S3_BUCKET_NAME = "start_up"
 
     extracted_links = await extract_social_media_links_ai(text_to_extract)
@@ -510,7 +510,7 @@ async def analyze_social(pdf_info:str,title:str,description:str,requirements:str
         }
     ),
          system_instruction=[
-            types.Part.from_text(text=(chosen_instruction + "IF Insufficient data provided for analysis,THEN TOTAL SOFT_SKILL EQUAL TO -1"))],
+            types.Part.from_text(text=(chosen_instruction))],
     )
 
     try:

@@ -156,7 +156,7 @@ class ResumeService:
                 has_feedback = True
                 if skill.maximum == 0 and skill.result == 0:
                     level = -1
-                    justification = "Так охарактеризовал вас бывший работодатель"
+                    justification = "Характеристика от бывшего работодателя"
                 else:
                     level = round((skill.result / skill.maximum) * 100, 2)
                     justification = "Отзыв работодателя"
@@ -292,8 +292,6 @@ class ResumeService:
     async def delete_resume(self, resume_id: int, user: User,commit:bool=True) -> Resume:
         doc_delete = CVService(self.db)
         resume = await self.get_resume(resume_id, user)
-        blob_name = f"analysis_reports/{user.id}/{resume_id}/report.pdf"
-        gcs_uri = f"gs://{GCS_BUCKET_NAME}/{blob_name}"
         if not resume:
             return None
 
@@ -315,20 +313,20 @@ class ResumeService:
             else:
                 raise
 
-        # 2) Удаляем отчёт-результат, игнорируя 404
-        try:
-            await doc_delete.delete_report_from_gcs(gcs_uri)
-        except HTTPException as exc:
-            if exc.status_code == 404 or "No such object" in str(exc.detail):
-                logger.warning(f"Report not found in GCS, skipping delete: {gcs_uri}")
-            else:
-                raise
-        except Exception as exc:
-            msg = str(exc)
-            if "404" in msg and "No such object" in msg:
-                logger.warning(f"Report not found in GCS (raw error), skipping delete: {gcs_uri}")
-            else:
-                raise
+        # # 2) Удаляем отчёт-результат, игнорируя 404
+        # try:
+        #     await doc_delete.delete_report_from_gcs(gcs_uri)
+        # except HTTPException as exc:
+        #     if exc.status_code == 404 or "No such object" in str(exc.detail):
+        #         logger.warning(f"Report not found in GCS, skipping delete: {gcs_uri}")
+        #     else:
+        #         raise
+        # except Exception as exc:
+        #     msg = str(exc)
+        #     if "404" in msg and "No such object" in msg:
+        #         logger.warning(f"Report not found in GCS (raw error), skipping delete: {gcs_uri}")
+        #     else:
+        #         raise
 
         if commit:
             await self.db.commit()

@@ -251,35 +251,21 @@ async def download_resume(
         raise HTTPException(status_code=500, detail=f"Error retrieving PDF: {str(e)}")
     
 @app.get("/download_analysis/{resume_id}")
-async def download_analysis(resume_id: int, user: User = Depends(safe_get_current_subject),db: AsyncSession = Depends(get_db)):
+async def download_analysis(
+    resume_id: int,
+    user: User = Depends(safe_get_current_subject),
+    db: AsyncSession = Depends(get_db)
+):
     try:
-        bucket_name = os.getenv("GCS_BUCKET_NAME", "your-default-bucket-name")
-        credentials_path = "school-kg-7bd58d53b816.json"
-        blob_path = f"analysis_reports/{user.id}/{resume_id}/report.pdf"
         resume_svc = resume_service.ResumeService(db)
         resume = await resume_svc.get_resume(resume_id, user)
 
-        # Подключение к GCS
-        client = storage.Client.from_service_account_json(credentials_path)
-        bucket = client.bucket(bucket_name)
-        blob = bucket.blob(blob_path)
-
-        # Если PDF уже существует — скачиваем и отдаём
-        if blob.exists():
-            pdf_bytes = blob.download_as_bytes()
-            return StreamingResponse(
-                io.BytesIO(pdf_bytes),
-                media_type="application/pdf",
-                headers={"Content-Disposition": f"attachment; filename=report_resume_{resume_id}.pdf"}
-            )
-
-        # Иначе — генерируем, загружаем и отдаём
+        # Генерируем PDF
         pdf_path = await generate_pdf_for_single_resume(resume)
-        gcs_uri = await upload_pdf_to_gcs(pdf_path, blob_path)
 
+        # Чтение и удаление временного файла
         with open(pdf_path, "rb") as f:
             content = f.read()
-
         os.remove(pdf_path)
 
         return StreamingResponse(
@@ -289,5 +275,5 @@ async def download_analysis(resume_id: int, user: User = Depends(safe_get_curren
         )
 
     except Exception as e:
-        logger.error(f"Ошибка генерации/загрузки анализа PDF: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Не удалось создать или получить отчёт.")
+        logger.error(f"Ошибка генерации PDF: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Не удалось создать отчёт.")

@@ -259,7 +259,7 @@ Evaluate only the following indicators grouped by category:
   - Exact match → ×0.9
   - Slightly below → ×0.6
   - Major mismatch (e.g. Junior applying to Senior) → ×0.5
-  justification should be SHORT
+  justification should be SHORT in Russian
 
 3. Extract the following data:
 - fullname (or "Not Found")

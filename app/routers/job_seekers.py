@@ -60,13 +60,13 @@ async def delete_resume(resume_id: int, db: AsyncSession = Depends(get_db), user
     
     return {"message": "Resume deleted successfully"}
 
-@router.delete("/report/{resume_id}")
-async def delete_resume_report(resume_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
-    service = CVService(db)
+# @router.delete("/report/{resume_id}")
+# async def delete_resume_report(resume_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+#     service = CVService(db)
   
 
-    if not await service.delete_report_from_gcs(resume_id,user):
-        raise HTTPException(status_code=404, detail="Resume Report not found")
+#     if not await service.delete_report_from_gcs(resume_id,user):
+#         raise HTTPException(status_code=404, detail="Resume Report not found")
     
-    return {"message": "Resume report deleted successfully"}
+#     return {"message": "Resume report deleted successfully"}
 

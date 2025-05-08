@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.database import AsyncSessionLocal
 from app.users.config import security, config, safe_get_current_subject
 from app.users.models import User
+from datetime import datetime,timezone,timedelta
 from sqlalchemy import desc
 
 router = APIRouter(prefix="/resumes", tags=["Resumes"])
@@ -34,10 +35,24 @@ async def get_all_resumes(db: AsyncSession = Depends(get_db), user: User = Depen
     resumes = result.scalars().all()
     return resumes
 @router.get("/count_resume")
-async def countResume(db:AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+async def count_resume(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(safe_get_current_subject)
+):
     service = ResumeService(db)
     resume_count = await service.countResume(user)
-    return resume_count
+
+    now = datetime.now(timezone.utc)
+    expires_at = user.expires_at
+    remaining_seconds = None
+    if expires_at:
+        delta = expires_at - now
+        remaining_seconds = int(delta.total_seconds()) if delta.total_seconds() > 0 else 0
+
+    return {
+        "resume_count": resume_count,
+        "remaining_seconds": remaining_seconds  # например, 7200 для 2 часов
+    }
 
 @router.get("/{resume_id}", response_model=ResumeResponse) 
 async def get_resume_by_id(resume_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):

@@ -33,6 +33,11 @@ async def get_all_resumes(db: AsyncSession = Depends(get_db), user: User = Depen
     )
     resumes = result.scalars().all()
     return resumes
+@router.get("/count_resume")
+async def countResume(db:AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
+    service = ResumeService(db)
+    resume_count = await service.countResume(user)
+    return resume_count
 
 @router.get("/{resume_id}", response_model=ResumeResponse) 
 async def get_resume_by_id(resume_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(safe_get_current_subject)):
@@ -49,6 +54,7 @@ async def save_test_result(vacancy_id:int,db:AsyncSession = Depends(get_db), use
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
     return resume
+
 
 
 

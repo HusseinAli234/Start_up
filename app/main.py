@@ -6,7 +6,7 @@ import aiofiles
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import engine, get_db
+from app.database import engine, get_db,get_db_context
 from app.models.base import Base
 from app.models.employers import JobPosting
 from app.schemas.resume_schema import ResumeCreate
@@ -39,6 +39,8 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from google.cloud import storage # Import GCS client
 import io
 from urllib.parse import quote
+from datetime import datetime,timezone
+from sqlalchemy import update
 
 
 logger = logging.getLogger(__name__)
@@ -47,15 +49,44 @@ logger = logging.getLogger(__name__)
 
 
 
+async def deactivate_expired_users():
+    while True:
+        async with get_db_context() as session:  
+            now = datetime.now(timezone.utc)
+            await session.execute(
+                update(User)
+                .where(User.expires_at != None)
+                .where(User.expires_at < now)
+                .where(User.is_active == True)
+                .values(is_active=False)
+            )
+            await session.commit()
+        await asyncio.sleep(60*10)  # раз в час
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ✅ создаём таблицы при запуске
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # ✅ запускаем фоновую задачу
+    task = asyncio.create_task(deactivate_expired_users())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    # ✅ закрываем движок при завершении
     await engine.dispose()
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000","http://localhost:3001","http://localhost","https://api.sand-box.pp.ua","http://api.sand-box.pp.ua","https://husseinali234.github.io","https://sandbox-front-dev-390134393019.us-central1.run.app","https://sandbox.sdinis.org"],
@@ -69,27 +100,32 @@ app.include_router(users_router.router)
 app.include_router(test_router.router)
 
 
-# Remove local upload dir if not needed
-# UPLOAD_DIR = "back_media/"
-# os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Add GCS config (e.g., from env vars or settings)
+
+
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "your-default-bucket-name") # Replace with your bucket name
-
 
 @app.post("/upload_pdf")
 async def upload_pdf(
     files: List[UploadFile] = File(...),
     user: User = Depends(safe_get_current_subject),
-    vacancy_id: Optional[int] = Query(default=None)
+    vacancy_id: Optional[int] = Query(default=None),
+    db: AsyncSession = Depends(get_db)
     ):
+    service = resume_service.ResumeService(db)
+    count = await service.countResume(user,len(files))
+    if count > 20 and user.user_type != "company":
+        raise HTTPException(
+                        status_code=403,
+                        detail="Превышен лимит резюме (20) для индивидуального пользователя.",
+                    )
+
     if vacancy_id is None:
         raise HTTPException(status_code=400, detail="vacancy_id is required")
     # Запуск всех задач параллельно
     tasks = [process_file(file, vacancy_id, user) for file in files]
     results = await asyncio.gather(*tasks)
     return JSONResponse(content={"resumes": results})
-
 async def process_file(file: UploadFile, vacancy_id: int, user: User):
     try:
         credentials_path = "school-kg-7bd58d53b816.json"

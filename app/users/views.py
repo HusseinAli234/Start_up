@@ -1,17 +1,25 @@
 from .models import User
 from .schemas import UserBase, UserLoginSChema, UserCreate
 from .config import security, config
-from fastapi import APIRouter, Depends, HTTPException, Response,Request
+from fastapi import APIRouter, Depends, HTTPException, Response,Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from passlib.context import CryptContext
 from app.database import get_db
-from .models import User 
+from .models import User
+from app.users.models.users import PromoCode
 from .schemas import UserBase, UserLoginSChema
 from .config import security, config
 from jose import jwt, JWTError
 from sqlalchemy.orm import selectinload
+import os
+from datetime import datetime,timedelta,timezone
+from dotenv import load_dotenv
+from sqlalchemy import update
 
+load_dotenv(override=True)
+EMP_PROMO = os.getenv("PROMO_CODE_INDIVIDUAL")
+IND_PROMO = os.getenv("PROMO_CODE_COMPANY")
 # Создаем контекст для хеширования паролей
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -31,6 +39,10 @@ async def get_token_from_request(request: Request, token_name: str = None) -> st
     return token
 @router.post("/register")
 async def register(user: UserCreate, response: Response, db: AsyncSession = Depends(get_db)):
+    if user.user_type == "individual" and user.promo_code != IND_PROMO:
+        raise HTTPException(status_code=400, detail="Неверный промокод для физ. лица")
+    if user.user_type == "company" and user.promo_code != EMP_PROMO:
+        raise HTTPException(status_code=400, detail="Неверный промокод для юр. лица")
 
     stmt = select(User).filter_by(email=user.email)
     result = await db.execute(stmt)
@@ -40,6 +52,15 @@ async def register(user: UserCreate, response: Response, db: AsyncSession = Depe
     
     # Хешируем пароль
     hashed_password = pwd_context.hash(user.password)
+    now = datetime.now(timezone.utc)
+
+    if user.user_type == "individual":
+        is_active = True
+        expires_at = now + timedelta(hours=2)
+    else:
+        is_active = False
+        expires_at = None  # активация вручную
+
     
     # Создаем нового пользователя, передаем хеш пароля в поле password
     new_user = User(
@@ -50,12 +71,27 @@ async def register(user: UserCreate, response: Response, db: AsyncSession = Depe
         phone=user.phone,
         inn=user.inn,
         logo=user.logo,
-        password=hashed_password  # Используем password для хранения хешированного пароля
+        password=hashed_password , # Используем password для хранения хешированного пароля
+        is_active=is_active,
+        user_type=user.user_type,
+        expires_at=expires_at,
+
     )
     
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
+
+    promo = PromoCode(
+        code=user.promo_code,
+        user_id=new_user.id,
+        user_type=user.user_type,
+    )
+    db.add(promo)
+    await db.commit()
+    await db.refresh(promo)
+
+
     
     # Сразу после регистрации создаем токен
     token = security.create_access_token(
@@ -95,6 +131,9 @@ async def login(user: UserLoginSChema, response: Response, db: AsyncSession = De
     db_user = result.scalar_one_or_none()
     if not db_user or not pwd_context.verify(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Неверный email или пароль")
+    
+    if not db_user.is_active:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Срок действия промокода истек или аккаунт не активирован!")
     
     
     token = security.create_access_token(uid=str(db_user.id), subject={"email": db_user.email})
@@ -147,6 +186,24 @@ async def refresh_token(request: Request, response: Response):
     return {"message": "Access token обновлён",
              "access_token": token
             }
+@router.post("/activate_promo")
+async def activate(email:str,db: AsyncSession = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    stmt = select(User).filter_by(email=email)
+    result = await db.execute(stmt)
+    db_user = result.scalar_one_or_none()
+    if not db_user:
+        raise HTTPException(status_code=401, detail="Неверный email или пароль")
+    await db.execute(
+                update(User)
+                .where(User.email == email)
+                .values( is_active=True,
+        expires_at=now + timedelta(days=5))
+            )
+    await db.commit()
+    return {f"Пользователь с почтой-{email} активирован"}
+
+
 
 
 @router.get("/me", response_model=UserBase)

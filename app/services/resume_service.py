@@ -13,6 +13,8 @@ from app.users.models import User
 from fastapi import status
 from google.cloud.exceptions import NotFound
 import logging 
+from datetime import datetime,timezone
+from sqlalchemy import select, func
 from dotenv import load_dotenv
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -331,6 +333,17 @@ class ResumeService:
         if commit:
             await self.db.commit()
         return resume
+
+    async def countResume(self,user:User,count:int=0):
+        if user.user_type == "individual":
+            stmt = (
+                    select(func.count())
+                    .select_from(Resume)
+                    .where(Resume.user_id == user.id)
+                )
+            result = await self.db.execute(stmt)
+            resume_count = result.scalar()
+            return resume_count + count
 
 
     

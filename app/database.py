@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
-
+from contextlib import asynccontextmanager
 load_dotenv() # Load .env for local development
 
 # --- Database Configuration ---
@@ -57,6 +57,7 @@ AsyncSessionLocal = sessionmaker(
 )
 
 # --- Dependency for FastAPI ---
+
 async def get_db():
     async with AsyncSessionLocal() as session:
         try:
@@ -68,6 +69,15 @@ async def get_db():
         finally:
             # Session closed automatically by 'async with'
             pass
+
+
+# db/context.py
+
+
+@asynccontextmanager
+async def get_db_context():
+    async with AsyncSessionLocal() as session:
+        yield session
 
 # async def get_db():
 #     async with AsyncSessionLocal() as session:
